@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  
+  <arg name="world_name" value="$(find my_global_planner)/worlds/world_ten.world"/>
+  
+  <!-- arg name="world_name" value="$(find bot_mapper)/gazebo/world_one.world" / -->
+
+  <arg name="laser_enabled" default="true"/>
+  <arg name="realsense_enabled" default="false"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world_name)"/> <!-- world_name is wrt GAZEBO_RESOURCE_PATH environment variable -->
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="false"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <include file="$(find husky_gazebo)/launch/spawn_husky.launch">
+    <arg name="laser_enabled" value="$(arg laser_enabled)"/>
+    <arg name="realsense_enabled" value="$(arg realsense_enabled)"/>
+    <arg name="x" default="-10.0"/>
+    <arg name="y" default="-10.0"/>
+    <arg name="z" default="0.0"/>
+    <arg name="yaw" default="0.0"/>
+  </include>
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find my_particle_filter)/rviz/robot.rviz" />
+  
+  <node type="map_server" name="map_server" pkg="map_server" args="$(find my_particle_filter)/map_files/map_ten.yaml"/>
+
+  <!-- node type="amcl" name="amcl" pkg="amcl" / -->
+
+</launch>
