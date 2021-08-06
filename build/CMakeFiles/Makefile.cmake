@@ -171,6 +171,8 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/opt/ros/melodic/share/tf/cmake/tfConfig.cmake"
   "/opt/ros/melodic/share/tf2/cmake/tf2Config-version.cmake"
   "/opt/ros/melodic/share/tf2/cmake/tf2Config.cmake"
+  "/opt/ros/melodic/share/tf2_geometry_msgs/cmake/tf2_geometry_msgsConfig-version.cmake"
+  "/opt/ros/melodic/share/tf2_geometry_msgs/cmake/tf2_geometry_msgsConfig.cmake"
   "/opt/ros/melodic/share/tf2_msgs/cmake/tf2_msgs-msg-extras.cmake"
   "/opt/ros/melodic/share/tf2_msgs/cmake/tf2_msgsConfig-version.cmake"
   "/opt/ros/melodic/share/tf2_msgs/cmake/tf2_msgsConfig.cmake"

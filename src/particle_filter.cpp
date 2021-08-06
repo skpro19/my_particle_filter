@@ -1,6 +1,5 @@
 #include <my_particle_filter/particle_filter.h>
 #include <cstdlib>
-
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -14,23 +13,47 @@ namespace particle_filter {
     ParticleFilter::ParticleFilter(costmap_2d::Costmap2DROS* costmap_ros): nh_{"particle_filter"} {
         
         ROS_INFO("Inside the ParticleFilter constructor! \n");
-        
-        my_costmap_ros = costmap_ros;
+
+        my_costmap_ros = costmap_ros; 
         costmap_ros_ = my_costmap_ros->getCostmap();
 
         size_x = costmap_ros_->getSizeInCellsX(); 
         size_y = costmap_ros_->getSizeInCellsY();
 
-
-        num_particles = 100;
-        res = 0.05;
-
-
+        num_particles = 1000;
+      
         update_map_bounds();
 
-        initial_pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("initial_poses", 1000);
-        initial_pose_array_pub = nh_.advertise<geometry_msgs::PoseArray>("initial_pose_array", 1000);
+        particle_list_.resize(0);
+        weight_list_.resize(0);
 
+        particle_pose_array_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particle_pose",10000, true);
+        
+    }
+
+    void ParticleFilter::publish_particle_list_(){
+      
+      geometry_msgs::PoseArray pose_array_;
+
+      pose_array_.header.frame_id = "map"; 
+      pose_array_.header.stamp = ros::Time().now();
+
+      for(int i =0 ; i < (int)particle_list_.size();i++) {
+
+        pose_array_.poses.push_back(particle_list_[i].pose);
+
+      }
+
+      particle_pose_array_pub_.publish(pose_array_);
+
+    }
+   
+
+    void ParticleFilter::run_filter_(){
+
+      initialize_particles_vector();
+      publish_particle_list_();
+      
     }
 
     void ParticleFilter::update_map_bounds(){
@@ -71,61 +94,46 @@ namespace particle_filter {
     
   }
 
-    void ParticleFilter::initialize_particle_cloud(){
+    void ParticleFilter::initialize_particles_vector() {
+
+
+      for(int i = 0; i < num_particles; i++) {
+
+          geometry_msgs::PoseStamped particle_;
+
+          particle_.header.stamp = ros::Time().now();
+          particle_.header.frame_id = "map";
+          
+          double wx_, wy_;
+
+          int mx_, my_;
+
+          mx_ = (map_xi + (rand() % (map_xf - map_xi))) ;
+          my_ = (map_yi + (rand() % (map_yf  - map_yi))) ;
+          
+          costmap_ros_->mapToWorld(mx_, my_, wx_, wy_);
+
+          tf2::Quaternion quat_tf;;
+          double curr_ang = ((double)rand()) / ((double)RAND_MAX) * 6.28;
+          cout << "curr_ang: " << curr_ang << endl;
+          quat_tf.setRPY(0,0, curr_ang);
+
+          geometry_msgs::Quaternion quat_msg; 
+          
+          tf2::convert(quat_msg, quat_tf);
+
+          particle_.pose.orientation = quat_msg;
+          particle_.pose.position.x = wx_;
+          particle_.pose.position.y = wy_;
+
+          particle_list_.push_back(particle_);
+
+      }
+  
+  }
+
         
-        geometry_msgs::PoseArray initial_pose_array;
 
-        initial_pose_array.header.stamp = ros::Time().now();
-        initial_pose_array.header.frame_id = "map";
-        
-        for(int i = 0; i < num_particles; i++) {
-
-            geometry_msgs::Pose curr_pose;
-
-            //curr_pose.header.frame_id = my_costmap_ros->getGlobalFrameID();
-            //curr_pose.header.frame_id = "map";
-            //curr_pose.header.stamp = ros::Time().now();
-
-            double wx_, wy_;
-
-            int mx_, my_;
-
-            mx_ = (map_xi + (rand() % (map_xf - map_xi))) ;
-            my_ = (map_yi + (rand() % (map_yf  - map_yi))) ;
-            
-            costmap_ros_->mapToWorld(mx_, my_, wx_, wy_);
-
-            tf2::Quaternion quat_tf;;
-            double curr_ang = ((double)rand()) / ((double)RAND_MAX) * 6.28;
-            quat_tf.setRPY(0,0, curr_ang);
-
-            geometry_msgs::Quaternion quat_msg; 
-            
-            tf2::convert(quat_msg, quat_tf);
-
-            curr_pose.orientation = quat_msg;
-            curr_pose.position.x = wx_; 
-            curr_pose.position.y= wy_;
-
-            //particles.push_back(curr_pose);
-            initial_pose_array.poses.push_back(curr_pose);
-            //cout << "curr_pose.x: " << curr_pose.pose.position.x << " curr_pose.y: " << curr_pose.pose.position.y << endl;
-            
-            
-        }
-        
-        while(true){
-        
-            initial_pose_array_pub.publish(initial_pose_array);
-            ros::Duration(5.0).sleep();
-        
-        }
-    
-    }
-
-
-   
-   
 
 
 };
@@ -135,18 +143,14 @@ int main(int argc, char** argv){
 
     ros::init(argc, argv, "pf");
 
-    
-        tf2_ros::Buffer buffer(ros::Duration(10));
-        tf2_ros::TransformListener tf(buffer);
+    tf2_ros::Buffer buffer(ros::Duration(10));
+    tf2_ros::TransformListener tf(buffer);
 
-        cout << "H1 one!" << endl;   
-        costmap_2d::Costmap2DROS* costmap_ros  = new costmap_2d::Costmap2DROS("global_costmap", buffer);  
-        cout << "H2 two!" << endl;
-    
+    costmap_2d::Costmap2DROS* costmap_ros  = new costmap_2d::Costmap2DROS("global_costmap", buffer);  
+  
+    particle_filter::ParticleFilter* pf = new particle_filter::ParticleFilter(costmap_ros);
 
-   particle_filter::ParticleFilter* pf = new particle_filter::ParticleFilter(costmap_ros);
-   pf->initialize_particle_cloud();
-
+    pf->run_filter_();
 
     ros::spin();
 
