@@ -20,8 +20,9 @@ namespace particle_filter {
             void publish_particle_list_();
             void perform_motion_model_update();
             void odom_callback(const nav_msgs::OdometryConstPtr &msg);
-            double add_gaussian_noise(double mean, double variances);
-
+            void add_gaussian_noise(double &point_, double variance_, double mean);
+            void add_gaussian_noise(tf2::Quaternion &q_t, std::vector<double> variance_, double mean);
+    
         private:
 
 
@@ -39,6 +40,10 @@ namespace particle_filter {
             ros::Subscriber odom_sub;
             nav_msgs::Odometry curr_odom_, prev_odom_;
             bool first_run;
+            std::vector<double> linear_cov, angular_cov; 
+
+            //double x_cov, y_cov, qx_cov, qy_cov, qz_cov, qw_cov;
+
             
     };
 
