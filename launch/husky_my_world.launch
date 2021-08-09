@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<launch>
+<launch ns="particle_filter">
 
   
   <arg name="world_name" value="$(find my_global_planner)/worlds/world_ten.world"/>
