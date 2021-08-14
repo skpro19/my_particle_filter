@@ -70,7 +70,7 @@ namespace particle_filter {
 
     ROS_INFO("wx_ %f wy_: %f mx_: %lu my_: %lu \n" , wx_, wy_, mx_, my_);
 
-   
+    /*
     vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
     vector<double> ray_cast_ranges;
     
@@ -81,7 +81,7 @@ namespace particle_filter {
     reverse(ray_cast_ranges.begin(),ray_cast_ranges.end());
 
     generate_fake_laserscan(ray_cast_ranges, particle_pose_);
-
+    */
   }
 
   void ParticleFilter::update_ray_cast_ranges(const geometry_msgs::PoseStamped &particle_pose_, const vector<pair<__uint32_t, __uint32_t> >&ray_cast_coords, vector<double> &ray_cast_ranges) {
@@ -190,6 +190,7 @@ namespace particle_filter {
 
     ROS_INFO("num_scans: %d ray_cast_coords.size(): %lu cnt: %d\n", num_scans, (int)ray_cast_coords.size(), cnt);
     ROS_INFO("End of update_ray_cast_coords function\n");
+  
   }
 
   void ParticleFilter::generate_fake_laserscan(const vector<double>&ranges_, const geometry_msgs::PoseStamped &particle_pose){
@@ -203,7 +204,7 @@ namespace particle_filter {
     double ranges[num_readings];
     double intensities[num_readings];
 
-    while(true){
+    //while(true){
       int count = 0;
       srand(time(0));
       ros::Rate r(1.0);
@@ -222,7 +223,11 @@ namespace particle_filter {
       scan.header.stamp = scan_time;
       scan.header.frame_id = "base_laser";
       
-      float theta_ =0; 
+      tf2::Quaternion q_ = {particle_pose.pose.orientation.x, particle_pose.pose.orientation.y, particle_pose.pose.orientation.z, particle_pose.pose.orientation.w};
+
+      //float theta_ = get_yaw_from_quaternion(q_); 
+
+      float theta_ =0;
 
       float ang_min = -2.356 + theta_;
       float ang_max = 2.356 + theta_;
@@ -245,8 +250,7 @@ namespace particle_filter {
       }
 
       fake_laser_pub.publish(scan);
-    }
-
+    
     ROS_INFO("End of the generate_fake_laserscan function! \n");
 
   }
@@ -284,6 +288,35 @@ namespace particle_filter {
     ROS_INFO("wx_: %f wy_: %f mx_: %lu my_: %lu\n",wx_, wy_, mx_, my_);
 
     ROS_INFO("cell_cost[%lu][%lu]: %lu\n", mx_, my_, costmap_ros_->getCost(mx_, my_));
+
+    //double wx_, wy_; 
+    //__uint32_t mx_, my_;
+
+    geometry_msgs::PoseStamped particle_pose_ ;
+
+    particle_pose_.header = msg->header;
+    particle_pose_.pose = msg->pose.pose;
+    
+    //my_costmap_ros->getRobotPose(particle_pose_);
+
+    //wx_ = particle_pose_.pose.position.x , wy_ = particle_pose_.pose.position.y;
+
+    //costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
+
+    ROS_INFO("wx_ %f wy_: %f mx_: %lu my_: %lu \n" , wx_, wy_, mx_, my_);
+
+   
+    vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
+    vector<double> ray_cast_ranges;
+    
+    update_ray_cast_coords(particle_pose_, ray_cast_coords);
+    
+    update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
+    
+    reverse(ray_cast_ranges.begin(),ray_cast_ranges.end());
+
+    generate_fake_laserscan(ray_cast_ranges, particle_pose_);
+
 
   }
 
@@ -383,9 +416,25 @@ namespace particle_filter {
 
       if(dis_ > 1) {
         
+        ROS_INFO("Calling the odom callback! \n");
+
         ROS_INFO("Bot has moved 1 meter in odom frame prev_x: %d prev_y: %d curr_x: %d curr_y: %d \n", prev_odom_.pose.pose.position.x , prev_odom_.pose.pose.position.y, curr_odom_.pose.pose.position.x, curr_odom_.pose.pose.position.y);
         perform_motion_model_update();
         prev_odom_ = curr_odom_;
+
+        geometry_msgs::PoseStamped particle_pose_;
+        my_costmap_ros->getRobotPose(particle_pose_);
+
+        vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
+        vector<double> ray_cast_ranges;
+        
+        update_ray_cast_coords(particle_pose_, ray_cast_coords);
+        
+        update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
+        
+        reverse(ray_cast_ranges.begin(),ray_cast_ranges.end());
+
+        generate_fake_laserscan(ray_cast_ranges, particle_pose_);
 
       }
 
