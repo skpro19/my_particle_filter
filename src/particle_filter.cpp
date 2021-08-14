@@ -8,7 +8,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include<geometry_msgs/PoseWithCovarianceStamped.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-
+#include <visualization_msgs/Marker.h>
 
 using namespace std;
 
@@ -35,23 +35,156 @@ namespace particle_filter {
       linear_cov = {0.001, 0.001};
       angular_cov = {0.001, 0.001, 0.03};
 
+      marker_id_cnt =0 ;
+
       //Class Publlishers 
       particle_pose_array_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particle_pose",10000, true);
-      
+      fake_laser_pub = nh_.advertise<sensor_msgs::LaserScan>("fake_laser_scan", 100, true);
+      goal_marker_pub = nh_.advertise<visualization_msgs::Marker>("goal_markers", 10000);      
+      //marker_array_pub
       ros::NodeHandle dummy_nh_("");
       
       first_run = true;
 
+      //Subscribers
       odom_sub = dummy_nh_.subscribe("husky_velocity_controller/odom", 100, &ParticleFilter::odom_callback, this);
       initial_pose_sub = dummy_nh_.subscribe("initialpose", 100, &ParticleFilter::initial_pose_callback, this);
-      
-
-      //ros::spinOnce();
-
-      //prev_odom_ = curr_odom_;
 
   }
 
+  void ParticleFilter::run_filter_(){
+
+    ROS_INFO("Inside the run_filter function \n");
+    initialize_particles_vector();
+    publish_particle_list_();
+
+    geometry_msgs::PoseStamped particle_pose_ ;
+    my_costmap_ros->getRobotPose(particle_pose_);
+
+    double wx_, wy_; 
+    __uint32_t mx_, my_;
+
+    wx_ = particle_pose_.pose.position.x , wy_ = particle_pose_.pose.position.y;
+
+    costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
+
+    ROS_INFO("wx_ %f wy_: %f mx_: %lu my_: %lu \n" , wx_, wy_, mx_, my_);
+
+   
+    vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
+    vector<double> ray_cast_ranges;
+    
+    update_ray_cast_coords(particle_pose_, ray_cast_coords);
+    
+    //update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
+    //generate_fake_laserscan(ray_cast_ranges, particle_pose_);
+
+  }
+
+  void ParticleFilter::update_ray_cast_ranges(const geometry_msgs::PoseStamped &particle_pose_, const vector<pair<__uint32_t, __uint32_t> >&ray_cast_coords, vector<double> &ray_cast_ranges) {
+    
+    ROS_INFO("Inside the update_ray_cast_ranges function\n");
+
+    ray_cast_ranges.resize(0);
+    
+    double wx_, wy_, mx_, my_; 
+    
+    wx_ = particle_pose_.pose.position.x, wy_ = particle_pose_.pose.position.y;
+
+    for(int i = 0; i < (int)ray_cast_coords.size(); i++){
+      
+      double cx_, cy_;
+      mx_  = ray_cast_coords[i].first, my_ = ray_cast_coords[i].second;
+
+      costmap_ros_->mapToWorld(mx_, my_, cx_, cy_);
+      
+      double dis_ = sqrt((wx_ - cx_) * (wx_ - cx_) + (wy_ - cy_) * (wy_ - cy_));
+
+      if(dis_ > 20.0) {
+        
+        ROS_INFO("------ dis > 20 found!!! -------- Something could be wrong! \n");
+        
+      }
+
+      ray_cast_ranges.push_back(dis_);
+
+    }
+
+    ROS_INFO("End of update_ray_cast_ranges function!\n");
+
+  }
+
+  void ParticleFilter::update_ray_cast_coords(geometry_msgs::PoseStamped &particle_, vector<pair<__uint32_t, __uint32_t> > &ray_cast_coords){
+
+    ROS_INFO("Inside the update_ray_cast_coords function! \n");
+
+    ray_cast_coords.clear();
+    ray_cast_coords.resize(0);
+
+    tf2::Quaternion q_ = {particle_.pose.orientation.x, particle_.pose.orientation.y, particle_.pose.orientation.z, particle_.pose.orientation.w};
+    
+    float theta_ = get_yaw_from_quaternion(q_);
+
+    ROS_INFO("theta_: %f\n",theta_);
+
+    float ang_min = -2.356 + theta_;
+    float ang_max = 2.356 + theta_;
+
+    int num_scans = 200;
+
+    float ang_inc = (ang_max - ang_min)/num_scans;
+
+    ROS_INFO("ang_inc: %f\n", ang_inc);
+
+    float range_min = 0.1;
+    float range_max = 30.0;
+
+    double wx_ = particle_.pose.position.x, wy_ = particle_.pose.position.y;
+    
+    __uint32_t mx_, my_;
+
+    costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
+
+    int cnt =0 ;
+
+    for(float i = ang_min; i <= ang_max; i+=ang_inc) {
+    
+      int r = 0;
+
+      int found = false;
+
+      while(true){
+
+        __uint32_t cx_ = mx_ + (1.0 * r * cos(i));
+        __uint32_t cy_ = my_ + (1.0 * r * sin(i));
+
+        if(cx_ > map_xf || cy_ > map_yf) {
+
+          ray_cast_coords.push_back({cx_, cy_});
+          ROS_INFO("Map bounds exceeded --- adding to ray_cast_coords!\n");
+          publish_marker({cx_, cy_});
+          cnt++;
+          break;
+        }
+
+        if(costmap_ros_->getCost(cx_,cy_) == (int)costmap_2d::LETHAL_OBSTACLE) {
+          
+          ray_cast_coords.push_back({cx_, cy_});
+          publish_marker({cx_, cy_});
+          cnt++;
+          //found = 1;
+          break;
+        }
+
+        r++;
+
+      }  
+
+    }
+
+    ROS_INFO("num_scans: %d ray_cast_coords.size(): %lu cnt: %d\n", num_scans, (int)ray_cast_coords.size(), cnt);
+    ROS_INFO("End of update_ray_cast_coords function\n");
+  }
 
   void ParticleFilter::initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg){
 
@@ -85,13 +218,6 @@ namespace particle_filter {
 
     ROS_INFO("cell_cost[%lu][%lu]: %lu\n", mx_, my_, costmap_ros_->getCost(mx_, my_));
 
-    geometry_msgs::PoseStamped pose_;
-    pose_.pose = msg->pose.pose;
-    pose_.header = msg->header;
-
-    ROS_INFO("------ Calling the ray_cast_particle function ---- \n");
-    ray_cast_particle(pose_);
-
   }
 
   float ParticleFilter::get_yaw_from_quaternion(tf2::Quaternion &q_){
@@ -105,90 +231,186 @@ namespace particle_filter {
 
 
   }
-
-  void ParticleFilter::generate_fake_laserscan(const vector<pair<__uint32_t, __uint32_t> >&ray_casted_points, geometry_msgs::PoseStamped particle_){
-
-    double ox_ = particle_.pose.position.x, oy_ = particle_.pose.position.y;
-
-    vector<double> ray_casted_ranges;
-
-    for(int i = 0; i <(int)ray_casted_points.size(); i++) {
-
-      __uint32_t mx_ = ray_casted_points[i].first, my_ = ray_casted_points[i].second;
-
-      double cx_, cy_;
-      costmap_ros_->mapToWorld(mx_, my_, cx_, cy_);
-      
-      double dis_ = sqrt(((cx_ - ox_) * (cx_ - ox_)) + ((cy_ - oy_) * (cy_ - oy_)));
-      
-      ray_casted_ranges.push_back(dis_);
-
-    }
+  
+  void ParticleFilter::publish_marker_array(const vector<pair<__uint32_t, __uint32_t> >&ray_cast_coords){
     
-    
+
 
 
   }
 
-  void ParticleFilter::ray_cast_particle(geometry_msgs::PoseStamped &particle_){
-    
-    tf2::Quaternion q_ = {particle_.pose.orientation.x, particle_.pose.orientation.y, particle_.pose.orientation.z, particle_.pose.orientation.w};
-    
-    float theta_ = get_yaw_from_quaternion(q_);
+  void ParticleFilter::publish_marker(pair<__uint32_t, __uint32_t> point_){
 
-    float ang_min = -2.356 + theta_;
-    float ang_max = 2.356 + theta_;
-
-    float ang_inc = 1.0/57;
-
-    ROS_INFO("ang_inc: %f\n", ang_inc);
-
-    float range_min = 0.1;
-    float range_max = 30.0;
-
-    double wx_ = particle_.pose.position.x, wy_ = particle_.pose.position.y;
-    
-    __uint32_t mx_, my_;
-
-    costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
-    
-    vector<pair<__uint32_t, __uint32_t> > ray_cast_ranges;
-
-    for(float i = ang_min; i <= ang_max; i+=ang_inc) {
-
-      int r = 0;
-
-      int found = false;
-
-      while(true){
-
-        __uint32_t cx_ = mx_ + r * cos(i);
-        __uint32_t cy_ = my_ + r * sin(i);
-
-        if(cx_ > map_xf || cy_ > map_yf) {
-
-          ray_cast_ranges.push_back({cx_, cy_});
-          break;
-        }
-
-        if(costmap_ros_->getCost(cx_,cy_) == (int)costmap_2d::LETHAL_OBSTACLE) {
-          
-          ray_cast_ranges.push_back({cx_, cy_});
-          //found = 1;
-          break;
-        }
-
-        r++;
-
-      }  
+    //while (ros::ok()){
       
-    
-    }
+      visualization_msgs::Marker marker;
+      
+      marker.header.frame_id = "map";
+      marker.header.stamp = ros::Time::now();
 
-    ROS_INFO("ray_cast_ranges.size(): %lu\n", (int)ray_cast_ranges.size());
+      marker.ns = nh_.getNamespace();
+      marker.id = marker_id_cnt++;
 
+      marker.type = visualization_msgs::Marker::CUBE;
+
+      marker.action = visualization_msgs::Marker::ADD;
+
+      double wx_, wy_; 
+      __uint32_t mx_ = point_.first, my_ = point_.second;
+
+      costmap_ros_->mapToWorld(mx_, my_,wx_, wy_);
+
+      marker.pose.position.x = wx_;
+      marker.pose.position.y = wy_;
+      marker.pose.position.z = 0;
+
+      marker.pose.orientation.x = 0.0;
+      marker.pose.orientation.y = 0.0;
+      marker.pose.orientation.z = 0.0;
+      marker.pose.orientation.w = 1.0;
+
+      marker.scale.x = 1.0;
+      marker.scale.y = 1.0;
+      marker.scale.z = 1.0;
+
+      marker.color.r = 0.0f;
+      marker.color.g = 1.0f;
+      marker.color.b = 0.0f;
+      marker.color.a = 1.0;
+
+      marker.lifetime = ros::Duration();
+
+      //ROS_INFO("goal_marker_pub.getNumSubscribers(): %lu\n", goal_marker_pub.getNumSubscribers());
+
+      while(goal_marker_pub.getNumSubscribers() <= 0) {
+        
+        ROS_INFO("Subscriber not found --- sleeping for 1 second! \n");
+        //goal_marker_pub.publish(marker);
+        ros::Duration(1.0).sleep();
+      
+      }
+      
+      //ROS_INFO("Subscriber found\n");
+      goal_marker_pub.publish(marker);
+
+      
+    //}
 
   }
+
+  void ParticleFilter::publish_marker_points(pair<__uint32_t, __uint32_t> &point_) {
+
+    ROS_INFO("Inside the publish_markers_points function!\n");
+    
+
+    std_msgs::ColorRGBA green;
+    green.r = 0;
+    green.g = 1.0;
+    green.b = 0;
+    green.a = 1.0;
+
+    visualization_msgs::Marker marker;
+    
+    marker.header.frame_id = "map";
+    marker.header.stamp = ros::Time();
+    marker.ns = nh_.getNamespace();
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    
+    marker.color.a = 1.0; //Don't forget to set the alpha!
+    
+    marker.id = marker_id_cnt++;
+    ROS_INFO("marker.id: %d\n", marker_id_cnt);
+    
+    
+    double wx_, wy_;
+    __uint32_t mx_ = point_.first, my_= point_.second; 
+    
+    costmap_ros_->mapToWorld(mx_, my_, wx_, wy_);
+
+    //costmap_ros_->mapToWorld(mx_,my_, wx_, wy_);
+    ROS_INFO("mx_: %lu my_: %lu wx_: %f wy_: %f\n",mx_, my_, wx_, wy_);
+
+    marker.pose.position.x = wx_;
+    marker.pose.position.y = wy_;
+    marker.pose.position.z = 1;
+
+    marker.scale.x = 20;
+    marker.scale.y = 20;
+    marker.scale.z = 10;
+
+    marker.lifetime = ros::Duration();
+    marker.color = green; 
+    
+    goal_marker_pub.publish( marker);   
+
+  }
+
+  void ParticleFilter::generate_fake_laserscan(const vector<double>&ranges_, const geometry_msgs::PoseStamped &particle_pose){
+
+    ROS_INFO("Inside the generate_fake_laserscan function! \n");
+
+    unsigned int num_readings = (int)ranges_.size();
+    
+    ROS_INFO("num_readings: %lu \n", num_readings);
+    
+    double ranges[num_readings];
+    double intensities[num_readings];
+
+    while(true){
+      int count = 0;
+      srand(time(0));
+      ros::Rate r(1.0);
+  
+      for(unsigned int i = 0; i < num_readings; ++i)
+      {
+        ranges[i] = ranges_[i];
+        intensities[i] = 0.0;
+      
+      }
+
+      ros::Time scan_time = ros::Time::now();
+
+      sensor_msgs::LaserScan scan;
+      
+      scan.header.stamp = scan_time;
+      scan.header.frame_id = "base_laser";
+      
+      float theta_ =0; 
+
+      float ang_min = -2.356 + theta_;
+      float ang_max = 2.356 + theta_;
+
+      scan.angle_min = ang_min;
+      scan.angle_max = ang_max;
+      scan.angle_increment = (scan.angle_max - scan.angle_min)/(1.0 *num_readings);
+      
+      scan.time_increment = 0;
+      scan.range_min = 0.02;
+      scan.range_max = 20.0;
+
+      scan.ranges.resize(num_readings);
+      scan.intensities.resize(num_readings);
+
+      for(unsigned int i = 0; i < num_readings; ++i)
+      {
+        scan.ranges[i] = ranges[i];
+        scan.intensities[i] = intensities[i];
+      }
+
+      fake_laser_pub.publish(scan);
+    }
+
+    ROS_INFO("End of the generate_fake_laserscan function! \n");
+
+  }
+
 
 
   void ParticleFilter::odom_callback(const nav_msgs::OdometryConstPtr &msg){
@@ -247,12 +469,6 @@ namespace particle_filter {
   }
   
 
-  void ParticleFilter::run_filter_(){
-
-    initialize_particles_vector();
-    publish_particle_list_();
-    
-  }
 
   void ParticleFilter::update_map_bounds(){
 
