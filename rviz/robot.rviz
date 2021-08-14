@@ -26,7 +26,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: FakeLaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -215,7 +215,7 @@ Visualization Manager:
       Marker Topic: /particle_filter/goal_markers
       Name: Marker
       Namespaces:
-        {}
+        /particle_filter: true
       Queue Size: 100
       Value: true
     - Alpha: 0.699999988079071
@@ -250,7 +250,7 @@ Visualization Manager:
       Color: 255; 255; 127
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 999999
@@ -267,7 +267,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -328,7 +328,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 119.20408630371094
+      Distance: 146.3238525390625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

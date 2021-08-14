@@ -41,7 +41,7 @@ namespace particle_filter {
       particle_pose_array_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particle_pose",10000, true);
       fake_laser_pub = nh_.advertise<sensor_msgs::LaserScan>("fake_laser_scan", 100, true);
       goal_marker_pub = nh_.advertise<visualization_msgs::Marker>("goal_markers", 10000);      
-      //marker_array_pub
+      
       ros::NodeHandle dummy_nh_("");
       
       first_run = true;
@@ -76,8 +76,11 @@ namespace particle_filter {
     
     update_ray_cast_coords(particle_pose_, ray_cast_coords);
     
-    //update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
-    //generate_fake_laserscan(ray_cast_ranges, particle_pose_);
+    update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
+    
+    reverse(ray_cast_ranges.begin(),ray_cast_ranges.end());
+
+    generate_fake_laserscan(ray_cast_ranges, particle_pose_);
 
   }
 
@@ -96,9 +99,11 @@ namespace particle_filter {
       double cx_, cy_;
       mx_  = ray_cast_coords[i].first, my_ = ray_cast_coords[i].second;
 
-      costmap_ros_->mapToWorld(mx_, my_, cx_, cy_);
+      //costmap_ros_->mapToWorld(mx_, my_, cx_, cy_);
       
-      double dis_ = sqrt((wx_ - cx_) * (wx_ - cx_) + (wy_ - cy_) * (wy_ - cy_));
+      costmap_ros_->mapToWorld(mx_, my_, wx_, wy_);
+
+      double dis_ = sqrt( ((wx_ - cx_) * (wx_ - cx_)) + ((wy_ - cy_) * (wy_ - cy_)));
 
       if(dis_ > 20.0) {
         
@@ -110,6 +115,7 @@ namespace particle_filter {
 
     }
 
+    ROS_INFO("ray_cast_ranges.size() %lu\n", ray_cast_ranges.size());
     ROS_INFO("End of update_ray_cast_ranges function!\n");
 
   }
@@ -186,6 +192,67 @@ namespace particle_filter {
     ROS_INFO("End of update_ray_cast_coords function\n");
   }
 
+  void ParticleFilter::generate_fake_laserscan(const vector<double>&ranges_, const geometry_msgs::PoseStamped &particle_pose){
+
+    ROS_INFO("Inside the generate_fake_laserscan function! \n");
+
+    unsigned int num_readings = (int)ranges_.size();
+    
+    ROS_INFO("num_readings: %lu \n", num_readings);
+    
+    double ranges[num_readings];
+    double intensities[num_readings];
+
+    while(true){
+      int count = 0;
+      srand(time(0));
+      ros::Rate r(1.0);
+  
+      for(unsigned int i = 0; i < num_readings; ++i)
+      {
+        ranges[i] = ranges_[i];
+        intensities[i] = 0.0;
+      
+      }
+
+      ros::Time scan_time = ros::Time::now();
+
+      sensor_msgs::LaserScan scan;
+      
+      scan.header.stamp = scan_time;
+      scan.header.frame_id = "base_laser";
+      
+      float theta_ =0; 
+
+      float ang_min = -2.356 + theta_;
+      float ang_max = 2.356 + theta_;
+
+      scan.angle_min = ang_min;
+      scan.angle_max = ang_max;
+      scan.angle_increment = ((double)scan.angle_max - (double)scan.angle_min)/(1.0 *num_readings);
+      
+      scan.time_increment = 0;
+      scan.range_min = 0.02;
+      scan.range_max = 200.0;
+
+      scan.ranges.resize(num_readings);
+      scan.intensities.resize(num_readings);
+
+      for(unsigned int i = 0; i < num_readings; ++i)
+      {
+        scan.ranges[i] = ranges[i];
+        scan.intensities[i] = intensities[i];
+      }
+
+      fake_laser_pub.publish(scan);
+    }
+
+    ROS_INFO("End of the generate_fake_laserscan function! \n");
+
+  }
+
+
+
   void ParticleFilter::initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg){
 
     ROS_INFO("Subscribed to the initialpose topic! \n");
@@ -232,12 +299,6 @@ namespace particle_filter {
 
   }
   
-  void ParticleFilter::publish_marker_array(const vector<pair<__uint32_t, __uint32_t> >&ray_cast_coords){
-    
-
-
-
-  }
 
   void ParticleFilter::publish_marker(pair<__uint32_t, __uint32_t> point_){
 
@@ -298,120 +359,7 @@ namespace particle_filter {
 
   }
 
-  void ParticleFilter::publish_marker_points(pair<__uint32_t, __uint32_t> &point_) {
-
-    ROS_INFO("Inside the publish_markers_points function!\n");
-    
-
-    std_msgs::ColorRGBA green;
-    green.r = 0;
-    green.g = 1.0;
-    green.b = 0;
-    green.a = 1.0;
-
-    visualization_msgs::Marker marker;
-    
-    marker.header.frame_id = "map";
-    marker.header.stamp = ros::Time();
-    marker.ns = nh_.getNamespace();
-
-    marker.type = visualization_msgs::Marker::CUBE;
-    marker.action = visualization_msgs::Marker::ADD;
-
-    marker.pose.orientation.x = 0.0;
-    marker.pose.orientation.y = 0.0;
-    marker.pose.orientation.z = 0.0;
-    marker.pose.orientation.w = 1.0;
-    
-    marker.color.a = 1.0; //Don't forget to set the alpha!
-    
-    marker.id = marker_id_cnt++;
-    ROS_INFO("marker.id: %d\n", marker_id_cnt);
-    
-    
-    double wx_, wy_;
-    __uint32_t mx_ = point_.first, my_= point_.second; 
-    
-    costmap_ros_->mapToWorld(mx_, my_, wx_, wy_);
-
-    //costmap_ros_->mapToWorld(mx_,my_, wx_, wy_);
-    ROS_INFO("mx_: %lu my_: %lu wx_: %f wy_: %f\n",mx_, my_, wx_, wy_);
-
-    marker.pose.position.x = wx_;
-    marker.pose.position.y = wy_;
-    marker.pose.position.z = 1;
-
-    marker.scale.x = 20;
-    marker.scale.y = 20;
-    marker.scale.z = 10;
-
-    marker.lifetime = ros::Duration();
-    marker.color = green; 
-    
-    goal_marker_pub.publish( marker);   
-
-  }
-
-  void ParticleFilter::generate_fake_laserscan(const vector<double>&ranges_, const geometry_msgs::PoseStamped &particle_pose){
-
-    ROS_INFO("Inside the generate_fake_laserscan function! \n");
-
-    unsigned int num_readings = (int)ranges_.size();
-    
-    ROS_INFO("num_readings: %lu \n", num_readings);
-    
-    double ranges[num_readings];
-    double intensities[num_readings];
-
-    while(true){
-      int count = 0;
-      srand(time(0));
-      ros::Rate r(1.0);
-  
-      for(unsigned int i = 0; i < num_readings; ++i)
-      {
-        ranges[i] = ranges_[i];
-        intensities[i] = 0.0;
-      
-      }
-
-      ros::Time scan_time = ros::Time::now();
-
-      sensor_msgs::LaserScan scan;
-      
-      scan.header.stamp = scan_time;
-      scan.header.frame_id = "base_laser";
-      
-      float theta_ =0; 
-
-      float ang_min = -2.356 + theta_;
-      float ang_max = 2.356 + theta_;
-
-      scan.angle_min = ang_min;
-      scan.angle_max = ang_max;
-      scan.angle_increment = (scan.angle_max - scan.angle_min)/(1.0 *num_readings);
-      
-      scan.time_increment = 0;
-      scan.range_min = 0.02;
-      scan.range_max = 20.0;
-
-      scan.ranges.resize(num_readings);
-      scan.intensities.resize(num_readings);
-
-      for(unsigned int i = 0; i < num_readings; ++i)
-      {
-        scan.ranges[i] = ranges[i];
-        scan.intensities[i] = intensities[i];
-      }
-
-      fake_laser_pub.publish(scan);
-    }
-
-    ROS_INFO("End of the generate_fake_laserscan function! \n");
-
-  }
-
-
+ 
 
   void ParticleFilter::odom_callback(const nav_msgs::OdometryConstPtr &msg){
 

@@ -32,10 +32,8 @@ namespace particle_filter {
             void generate_fake_laserscan(const std::vector<double>&ranges_, const geometry_msgs::PoseStamped &particle_pose);
             void update_ray_cast_ranges(const geometry_msgs::PoseStamped &particle_pose_, const std::vector<std::pair<__uint32_t, __uint32_t> >&ray_cast_coords, std::vector<double> &ray_cast_ranges);
             void update_ray_cast_coords(geometry_msgs::PoseStamped &particle_, std::vector<std::pair<__uint32_t, __uint32_t> > &ray_cast_coords);
-            void publish_marker_points(std::pair<__uint32_t, __uint32_t> &point_) ;
             void publish_marker(std::pair<__uint32_t, __uint32_t> point_);
-            void publish_marker_array(const std::vector<std::pair<__uint32_t, __uint32_t> >&ray_cast_coords);
-
+            
         
         
         private:
@@ -45,7 +43,7 @@ namespace particle_filter {
             int num_particles;
             costmap_2d::Costmap2D* costmap_ros_;
             __uint32_t size_x , size_y;
-            ros::Publisher particle_pose_array_pub_, fake_laser_pub,goal_marker_pub, marker_array_pub;
+            ros::Publisher particle_pose_array_pub_, fake_laser_pub,goal_marker_pub;
             ros::NodeHandle nh_;    
             int map_xi, map_xf, map_yi, map_yf;
             double res;
