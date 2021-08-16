@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /RealLaserScan1
       Splitter Ratio: 0.42352941632270813
     Tree Height: 794
   - Class: rviz/Selection
@@ -215,7 +216,7 @@ Visualization Manager:
       Marker Topic: /particle_filter/goal_markers
       Name: Marker
       Namespaces:
-        /particle_filter: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 0.699999988079071
@@ -302,6 +303,36 @@ Visualization Manager:
       Topic: /odometry/filtered
       Unreliable: false
       Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 0.4059300124645233
+        Min Value: 0.4059300124645233
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/LaserScan
+      Color: 92; 53; 102
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 999999
+      Min Color: 0; 0; 0
+      Min Intensity: -1.831010023947112e-36
+      Name: RealLaserScan
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.15000000596046448
+      Style: Flat Squares
+      Topic: /particle_filter/real_laser_scan
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -328,7 +359,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 115.67475891113281
+      Distance: 117.73267364501953
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
