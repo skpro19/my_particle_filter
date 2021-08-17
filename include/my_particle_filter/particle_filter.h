@@ -60,7 +60,17 @@ namespace particle_filter {
             //double x_cov, y_cov, qx_cov, qy_cov, qz_cov, qw_cov;
             std::vector<double>laserscan_ranges;
             bool laserscan_flag;
-            int num_scan_readings;
+            
+            //testing vars
+            geometry_msgs::PoseStamped init_pose_;
+
+            //scan params
+            int num_readings_scan;
+            double range_min_scan; ;
+            double range_max_scan;;
+            double ang_inc_scan;
+            double ang_mn_scan;
+            double ang_mx_scan;
             
     };
 

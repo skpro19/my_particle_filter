@@ -50,7 +50,6 @@ namespace particle_filter {
       ros::NodeHandle dummy_nh_("");
       
       first_run = true;
-      num_scan_readings = 200;
       laserscan_flag = false;
 
       //Subscribers
@@ -60,6 +59,16 @@ namespace particle_filter {
 
       //flags
       laserscan_flag = false;
+
+      //scan parameters
+      range_min_scan = 0.1;
+      range_max_scan = 30.0;
+      ang_inc_scan = 0.0065540750511 * 4;
+      ang_mn_scan = -2.3561899662;
+      ang_mx_scan = 2.3561899662;
+
+      ROS_INFO("Printing from inside the constructor!\n");
+      ROS_INFO("ang_inc_scan: %f\n", ang_inc_scan);
 
   }
 
@@ -98,79 +107,108 @@ namespace particle_filter {
   void ParticleFilter::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg){
 
     if(!laserscan_flag) {return;}
-
+    
     ROS_INFO("Inside the laserscan_callback function! \n");
 
     laserscan_ranges.resize(0);
-    laserscan_ranges.clear();
 
-    int sz = msg->ranges.size();
+    double ang_inc = msg->angle_increment;
 
-    int step_sz = sz/num_scan_readings;
+    int mul = ang_inc_scan/ang_inc;
 
-    for(int i = 0; i < sz; i+= step_sz){
+    ROS_INFO("mul: %d\n", mul);
 
-      laserscan_ranges.push_back(msg->ranges[i]);
+    for(double i = 0; i < msg->ranges.size(); i+= mul) {
+
+        laserscan_ranges.push_back(msg->ranges[i]);
+
+    }
+
+    ROS_INFO("laserscan_ranges.size(): %d\n", laserscan_ranges.size());
+    
+    ROS_INFO("Printing laserscan_ranges---\n");
+
+    for(int i= 0; i <(int)laserscan_ranges.size();i++) {
+
+      ROS_INFO("laserscan_ranges[i]: %f\n", laserscan_ranges[i]);
 
     }
     
-    /*
+    geometry_msgs::PoseStamped particle_pose_ = init_pose_;
     
-    publish_laserscan(laserscan_ranges, real_laser_pub);    
-    
-    geometry_msgs::PoseStamped particle_pose_;
-    my_costmap_ros->getRobotPose(particle_pose_);
-
     vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
     vector<double> ray_cast_ranges;
     
-    
     update_ray_cast_coords(particle_pose_, ray_cast_coords);
     update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
-    reverse(ray_cast_ranges.begin(),ray_cast_ranges.end());
-    publish_laserscan(ray_cast_ranges, fake_laser_pub);
+    
+    double w_ = get_particle_weights(ray_cast_ranges);
+
+    ROS_INFO("w_: %f\n", w_);
+
+    /*ROS_INFO("ray_cast_coords.size(): %d\n", ray_cast_coords.size());
+    ROS_INFO("ray_cast_ranges.size(): %d\n", ray_cast_ranges.size());
+
+
+    ROS_INFO("Printing ray_cast_ranges ---\n");
+
+    for(int i= 0; i <(int)ray_cast_ranges.size();i++) {
+
+      ROS_INFO("ray_cast_ranges[i]: %f\n", ray_cast_ranges[i]);
+
+    }
+
+    ROS_INFO("Printing comparison ranges---\n");
+
+    for(int i =0 ;i < (int)laserscan_ranges.size(); i++) {
+
+      ROS_INFO("ls[i]: %f casted[i]: %f diff: %f\n", laserscan_ranges[i], ray_cast_ranges[i], abs(laserscan_ranges[i] - ray_cast_ranges[i]));
+
+    }*/
+
+
 
     laserscan_flag = false;
     
-    */
-
+    
   }
 
   double ParticleFilter::get_particle_weights(const vector<double> &ray_cast_ranges){
 
-    double w_ = 1;
-    double del_t = 0 ;
-
     ROS_INFO("ray_cast_ranges.size(): %lu\n", ray_cast_ranges.size());
     ROS_INFO("laserscan_ranges.size(): %lu\n", laserscan_ranges.size());
     
-    ROS_INFO("ray_cast_ranges.size() == laserscan_ranges.size(): %d\n", (ray_cast_ranges.size() == laserscan_ranges.size()));
-
+    
     int flag_ = ((int)laserscan_ranges.size() == (int)ray_cast_ranges.size());
 
-    if(flag_ == 0) {
+    if(!flag_) {
 
-      ROS_INFO("Something is definitely wrong --- Inside the update_particle_wieight function! \n");
-
+      ROS_INFO("Alert ----- laserscan_ranges.size() != ray_cast_ranges.size()!\n");
+      ROS_INFO("laserscan_ranges.size(): %d\n", laserscan_ranges.size());
+      ROS_INFO("ray_cast_ranges.size(): %d \n", ray_cast_ranges.size());
+    
     }
+    
+    double del_t = 0;
 
     for(int i =0 ; i < (int)laserscan_ranges.size(); i++) {
+      
+      double a = laserscan_ranges[i], b = ray_cast_ranges[i];
 
-      double del_ = (laserscan_ranges[i] - ray_cast_ranges[i]);
-      del_ = del_ * del_;
+      if(a = INFINITY) {a = range_max_scan;}
 
-      del_ = del_/20.0;
-
-      //del_ = del_/laser_cov;
+      double del_ = abs(a - b);
+      
+      del_ = del_/range_max_scan;
 
       del_t = del_t + del_;
 
     }
 
-    ROS_INFO("del_t: %f\n", del_t);
-    w_ = exp(-del_t);
-
-    return w_;
+    del_t = del_t / (1.0 * (int)laserscan_ranges.size());
+    
+    del_t *= del_t;
+    return exp(-del_t);
 
   }
 
@@ -195,17 +233,10 @@ namespace particle_filter {
 
       double dis_ = sqrt( ((wx_ - cx_) * (wx_ - cx_)) + ((wy_ - cy_) * (wy_ - cy_)));
 
-      if(dis_ > 20.0) {
-        
-        ROS_INFO("------ dis > 20 found!!! -------- Something could be wrong! \n");
-        
-      }
-
       ray_cast_ranges.push_back(dis_);
 
     }
 
-    ROS_INFO("ray_cast_ranges.size() %lu\n", ray_cast_ranges.size());
     ROS_INFO("End of update_ray_cast_ranges function!\n");
 
   }
@@ -221,21 +252,9 @@ namespace particle_filter {
 
     tf2::Quaternion q_ = {particle_.pose.orientation.x, particle_.pose.orientation.y, particle_.pose.orientation.z, particle_.pose.orientation.w};
     
-    float theta_ = get_yaw_from_quaternion(q_);
+    double theta_ = get_yaw_from_quaternion(q_);
 
     ROS_INFO("theta_: %f\n",theta_);
-
-    float ang_min = -2.356 + theta_;
-    float ang_max = 2.356 + theta_;
-
-    int num_scans = num_scan_readings;
-
-    float ang_inc = (ang_max - ang_min)/num_scans;
-
-    ROS_INFO("ang_inc: %f\n", ang_inc);
-
-    float range_min = 0.1;
-    float range_max = 30.0;
 
     double wx_ = particle_.pose.position.x, wy_ = particle_.pose.position.y;
     
@@ -243,12 +262,12 @@ namespace particle_filter {
 
     costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
 
-    int cnt =0 ;
+    ROS_INFO("ang_inc_scan: %f\n", ang_inc_scan);
 
-    set<pair<__uint32_t,__uint32_t> > unique_pts;
+    //ros::Duration(5.0).sleep();
 
-    for(float i = ang_min; i <= ang_max; i+=ang_inc) {
-    
+    for(double i = ang_mn_scan + theta_; i <= ang_mx_scan + theta_; i+=ang_inc_scan) {
+      
       int r = 0;
 
       int found = false;
@@ -261,19 +280,7 @@ namespace particle_filter {
         if(cx_ > map_xf || cy_ > map_yf) {
 
           ray_cast_coords.push_back({cx_, cy_});
-          unique_pts.insert({cx_, cy_});
-          
-          double wx_t, wy_t;
-          costmap_ros_->mapToWorld(cx_, cy_, wx_t, wy_t);
-          
-          ROS_INFO("Map bounds exceeded --- adding to ray_cast_coords!\n");
-          ROS_INFO("cx_: %lu cy_: %ul\n", cx_, cy_);
-          ROS_INFO("wx_t: %f wy_t: %f\n", wx_t, wy_t);
-          
-          
-          //publish_marker({cx_, cy_});
           point_marker_array.push_back({cx_, cy_});
-          cnt++;
           break;
         
         }
@@ -281,18 +288,7 @@ namespace particle_filter {
         if(costmap_ros_->getCost(cx_,cy_) == (int)costmap_2d::LETHAL_OBSTACLE) {
           
           ray_cast_coords.push_back({cx_, cy_});
-          unique_pts.insert({cx_, cy_});
-
-          double wx_t, wy_t;
-          costmap_ros_->mapToWorld(cx_, cy_, wx_t, wy_t);
-          
-          ROS_INFO("cx_: %lu cy_: %ul\n", cx_, cy_);
-          ROS_INFO("wx_t: %f wy_t: %f\n", wx_t, wy_t);
-          
-          //publish_marker({cx_, cy_});
           point_marker_array.push_back({cx_, cy_});
-          
-          cnt++;
         
           break;
         
@@ -304,10 +300,7 @@ namespace particle_filter {
 
     }
 
-    ROS_INFO("num_scans: %d ray_cast_coords.size(): %lu cnt: %d\n", num_scans, (int)ray_cast_coords.size(), cnt);
-    ROS_INFO("unique_pts.size(): %d", (int)unique_pts.size());
-    ROS_INFO("End of update_ray_cast_coords function\n");
-
+    
     publish_marker_array(point_marker_array);
 
   }
@@ -480,14 +473,18 @@ namespace particle_filter {
     particle_pose_.header = msg->header;
     particle_pose_.pose = msg->pose.pose;
 
+    init_pose_ = particle_pose_;
+
     ROS_INFO("wx_ %f wy_: %f mx_: %lu my_: %lu \n" , wx_, wy_, mx_, my_);
 
-   
+    laserscan_flag = true;
     vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
     vector<double> ray_cast_ranges;
     
-    update_ray_cast_coords(particle_pose_, ray_cast_coords);
+    //update_ray_cast_coords(particle_pose_, ray_cast_coords);
     
+    //ROS_INFO("ray_cast_coords.size(): %d\n", ray_cast_coords.size());
+
     //update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
     //reverse(ray_cast_ranges.begin(),ray_cast_ranges.end());
     
