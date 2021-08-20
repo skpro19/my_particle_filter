@@ -205,6 +205,7 @@ namespace particle_filter {
 
     }
 
+
     del_t = del_t / (1.0 * (int)laserscan_ranges.size());
     
     del_t *= del_t;

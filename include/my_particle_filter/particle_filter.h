@@ -56,8 +56,10 @@ namespace particle_filter {
             double laser_cov;
 
             int marker_id_cnt;
+            
             //ros::Publisher global_plan_pub, goal_marker_pub;
             //double x_cov, y_cov, qx_cov, qy_cov, qz_cov, qw_cov;
+            
             std::vector<double>laserscan_ranges;
             bool laserscan_flag;
             
