@@ -10,6 +10,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <math.h>
 
 using namespace std;
 
@@ -25,17 +26,18 @@ namespace particle_filter {
       size_x = costmap_ros_->getSizeInCellsX(); 
       size_y = costmap_ros_->getSizeInCellsY();
 
-      num_particles = 10;
+      num_particles = 100;
     
       update_map_bounds();
 
       particle_list_.resize(0);
       weight_list_.resize(0);
 
-
+      //Gaussian
       linear_cov = {0.001, 0.001};
       angular_cov = {0.001, 0.001, 0.03};
-      laser_cov = 0.03;
+      
+      laser_cov = 4;
 
       marker_id_cnt =0 ;
 
@@ -45,7 +47,8 @@ namespace particle_filter {
       real_laser_pub = nh_.advertise<sensor_msgs::LaserScan>("real_laser_scan", 100, true);
       goal_marker_pub = nh_.advertise<visualization_msgs::Marker>("goal_markers", 10000);      
       marker_array_pub = nh_.advertise<visualization_msgs::MarkerArray>("marker_array_", 10000);      
-      
+      weighted_marker_array_pub = nh_.advertise<visualization_msgs::MarkerArray>("weighted_marker_array_", 10000);
+
       ros::NodeHandle nh_;          
       ros::NodeHandle dummy_nh_("");
       
@@ -110,13 +113,14 @@ namespace particle_filter {
     
     ROS_INFO("Inside the laserscan_callback function! \n");
 
-    laserscan_ranges.resize(0);
 
     double ang_inc = msg->angle_increment;
 
     int mul = ang_inc_scan/ang_inc;
 
     ROS_INFO("mul: %d\n", mul);
+
+    laserscan_ranges.resize(0);
 
     for(double i = 0; i < msg->ranges.size(); i+= mul) {
 
@@ -125,58 +129,69 @@ namespace particle_filter {
     }
 
     ROS_INFO("laserscan_ranges.size(): %d\n", laserscan_ranges.size());
+
     
-    ROS_INFO("Printing laserscan_ranges---\n");
+    weight_list_.resize(0); 
+    weight_list_.resize(num_particles);
+    
+    double w_t = 0 ;
 
-    for(int i= 0; i <(int)laserscan_ranges.size();i++) {
+    for(int i =0 ; i < num_particles; i++ ){
 
-      ROS_INFO("laserscan_ranges[i]: %f\n", laserscan_ranges[i]);
+      geometry_msgs::PoseStamped particle_pose_ = particle_list_[i];
+
+      vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
+      vector<double> ray_cast_ranges;
+      
+      update_ray_cast_coords(particle_pose_, ray_cast_coords);
+      update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
+      
+      double w_ = get_particle_weights(ray_cast_ranges);
+    
+      w_t += w_;
+
+      ROS_INFO("w_: %f\n", w_);
+
+      weight_list_[i] = w_;
 
     }
     
-    geometry_msgs::PoseStamped particle_pose_ = init_pose_;
-    
-    vector<pair<__uint32_t, __uint32_t> > ray_cast_coords;
-    vector<double> ray_cast_ranges;
-    
-    update_ray_cast_coords(particle_pose_, ray_cast_coords);
-    update_ray_cast_ranges(particle_pose_, ray_cast_coords, ray_cast_ranges);
-    
-    double w_ = get_particle_weights(ray_cast_ranges);
+    for(int i =0 ;i < num_particles; i++){
 
-    ROS_INFO("w_: %f\n", w_);
-
-    /*ROS_INFO("ray_cast_coords.size(): %d\n", ray_cast_coords.size());
-    ROS_INFO("ray_cast_ranges.size(): %d\n", ray_cast_ranges.size());
-
-
-    ROS_INFO("Printing ray_cast_ranges ---\n");
-
-    for(int i= 0; i <(int)ray_cast_ranges.size();i++) {
-
-      ROS_INFO("ray_cast_ranges[i]: %f\n", ray_cast_ranges[i]);
+      normalized_weight_list[i] = weight_list_[i]/w_t;
 
     }
 
-    ROS_INFO("Printing comparison ranges---\n");
+    for(int i =0; i < num_particles; i++){
 
-    for(int i =0 ;i < (int)laserscan_ranges.size(); i++) {
+      ROS_INFO("weight_list_[i]: %f normalized_weight_list[i]: %f\n", weight_list_[i], normalized_weight_list[i]);
+            
+    }
 
-      ROS_INFO("ls[i]: %f casted[i]: %f diff: %f\n", laserscan_ranges[i], ray_cast_ranges[i], abs(laserscan_ranges[i] - ray_cast_ranges[i]));
+    publish_weighted_marker_array();
 
-    }*/
-
-
+    //weighted_marker_array_pub.publish()
 
     laserscan_flag = false;
     
+  }
+
+  double ParticleFilter::Gaussian(double mu, double sigma, double x){
+
+    double a =  pow((mu - x) , 2);
+    double b = 2 * pow(sigma,2);
+    double c = sqrt(2.0 * 2 * acos(0.0) * pow(sigma, 2));
+    
+    ROS_INFO("a: %f b: %f c: %f\n", a, b, c);
+
+    return exp(- (a / b )) / c;
     
   }
 
   double ParticleFilter::get_particle_weights(const vector<double> &ray_cast_ranges){
 
-    ROS_INFO("ray_cast_ranges.size(): %lu\n", ray_cast_ranges.size());
-    ROS_INFO("laserscan_ranges.size(): %lu\n", laserscan_ranges.size());
+    //ROS_INFO("ray_cast_ranges.size(): %lu\n", ray_cast_ranges.size());
+    //ROS_INFO("laserscan_ranges.size(): %lu\n", laserscan_ranges.size());
     
     
     int flag_ = ((int)laserscan_ranges.size() == (int)ray_cast_ranges.size());
@@ -189,27 +204,35 @@ namespace particle_filter {
     
     }
     
-    double del_t = 0;
+    double del_t = 1;
+
+    int infinity_cnt =0 ;
 
     for(int i =0 ; i < (int)laserscan_ranges.size(); i++) {
       
       double a = laserscan_ranges[i], b = ray_cast_ranges[i];
 
-      if(a = INFINITY) {a = range_max_scan;}
+    
+      //ROS_INFO("a: %f b: %f\n", a, b);
+      double del_ = Gaussian(b, sqrt(laser_cov), a);
+      del_ /= 0.2;
+      //ROS_INFO("del_: %f\n", del_);
 
-      double del_ = abs(a - b);
-      
-      del_ = del_/range_max_scan;
+      //del_ = del_/range_max_scan;
 
-      del_t = del_t + del_;
+      //del_t *= del_;
+      del_t += del_;
+
+      //ROS_INFO("del_t after %d iterations: %f\n", del_t, i);
 
     }
 
+    //ROS_INFO("infiinity_cnt: %d\n", infinity_cnt);
 
-    del_t = del_t / (1.0 * (int)laserscan_ranges.size());
+    //del_t = del_t / (1.0 * (int)laserscan_ranges.size());
     
-    del_t *= del_t;
-    return exp(-del_t);
+    //del_t *= del_t;
+    return (del_t);
 
   }
 
@@ -305,7 +328,63 @@ namespace particle_filter {
     publish_marker_array(point_marker_array);
 
   }
+  void ParticleFilter::publish_weighted_marker_array(){
 
+    visualization_msgs::MarkerArray marker_array;
+
+    
+    for(int i = 0; i < (int)particle_list_.size(); i++) {
+      
+      visualization_msgs::Marker marker;
+      
+      marker.header.frame_id = "map";
+      marker.header.stamp = ros::Time::now();
+
+      marker.ns = nh_.getNamespace();
+      marker.id = marker_id_cnt++;
+
+      marker.type = visualization_msgs::Marker::CUBE;
+
+      marker.action = visualization_msgs::Marker::ADD;
+
+      double wx_ = particle_list_[i].pose.position.x, wy_ = particle_list_[i].pose.position.y;
+
+      //__uint32_t mx_ = particle_list_[i].pose, my_ = particle_list_[i].second;
+
+      //costmap_ros_->mapToWorld(mx_, my_,wx_, wy_);
+
+      marker.pose.position.x = wx_;
+      marker.pose.position.y = wy_;
+      marker.pose.position.z = 0;
+
+      marker.pose.orientation.x = 0.0;
+      marker.pose.orientation.y = 0.0;
+      marker.pose.orientation.z = 0.0;
+      marker.pose.orientation.w = 1.0;
+
+      marker.scale.x = normalized_weight_list[i];
+      marker.scale.y = normalized_weight_list[i];
+      marker.scale.z = 1.0;
+
+      marker.color.r = 0.0f;
+      marker.color.g = 1.0f;
+      marker.color.b = 0.0f;
+      marker.color.a = 1.0;
+
+      marker.lifetime = ros::Duration();
+
+      
+      marker_array.markers.push_back(marker);
+
+      
+    }
+
+    weighted_marker_array_pub.publish(marker_array);
+
+
+  }
+
+  
   void ParticleFilter::publish_marker_array(const vector<pair<__uint32_t, __uint32_t> >&point_marker_array){
     
     visualization_msgs::MarkerArray marker_array;

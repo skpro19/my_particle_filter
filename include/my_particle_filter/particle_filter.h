@@ -36,25 +36,26 @@ namespace particle_filter {
             double get_particle_weights(const std::vector<double> &ray_cast_ranges);
             void delete_all_markers();
             void publish_marker_array(const std::vector<std::pair<__uint32_t, __uint32_t> >&point_marker_array);
-
+            double Gaussian(double mu, double sigma, double x);
+            void publish_weighted_marker_array();
+        
         private:
             
             costmap_2d::Costmap2DROS* my_costmap_ros;
             int num_particles;
             costmap_2d::Costmap2D* costmap_ros_;
             __uint32_t size_x , size_y;
-            ros::Publisher particle_pose_array_pub_, fake_laser_pub, real_laser_pub,goal_marker_pub, marker_array_pub;
+            ros::Publisher particle_pose_array_pub_, fake_laser_pub, real_laser_pub,goal_marker_pub, marker_array_pub, weighted_marker_array_pub;
             ros::NodeHandle nh_;    
             int map_xi, map_xf, map_yi, map_yf;
             double res;
             std::vector<geometry_msgs::PoseStamped> particle_list_;
-            std::vector<double>weight_list_;
+            std::vector<double>weight_list_, normalized_weight_list;
             ros::Subscriber odom_sub, initial_pose_sub, laserscan_sub;
             nav_msgs::Odometry curr_odom_, prev_odom_;
             bool first_run;
             std::vector<double> linear_cov, angular_cov; 
-            double laser_cov;
-
+            
             int marker_id_cnt;
             
             //ros::Publisher global_plan_pub, goal_marker_pub;
@@ -73,7 +74,9 @@ namespace particle_filter {
             double ang_inc_scan;
             double ang_mn_scan;
             double ang_mx_scan;
-            
+            double laser_cov;
+
+
     };
 
 
