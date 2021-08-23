@@ -20,7 +20,7 @@ namespace particle_filter {
             void update_particle_with_measurement_model();
             void initialize_particles_vector();
             void run_filter_();
-            void publish_particle_list_();
+            void publish_particle_list_(const std::vector<geometry_msgs::PoseStamped>&particle_list_);
             void perform_motion_model_update();
             void odom_callback(const nav_msgs::OdometryConstPtr &msg);
             void add_gaussian_noise(double &point_, double variance_, double mean);
@@ -38,6 +38,10 @@ namespace particle_filter {
             void publish_marker_array(const std::vector<std::pair<__uint32_t, __uint32_t> >&point_marker_array);
             double Gaussian(double mu, double sigma, double x);
             void publish_weighted_marker_array();
+            void perform_measurement_update();
+            void resample_weights();
+            void publish_weighted_resampled_marker_array(const std::vector<geometry_msgs::PoseStamped>&resampled_particles_);
+            geometry_msgs::PoseStamped return_noisy_particle(geometry_msgs::PoseStamped &particle_);
         
         private:
             
@@ -46,6 +50,8 @@ namespace particle_filter {
             costmap_2d::Costmap2D* costmap_ros_;
             __uint32_t size_x , size_y;
             ros::Publisher particle_pose_array_pub_, fake_laser_pub, real_laser_pub,goal_marker_pub, marker_array_pub, weighted_marker_array_pub;
+            ros::Publisher resampled_weighted_marker_array_pub;
+            
             ros::NodeHandle nh_;    
             int map_xi, map_xf, map_yi, map_yf;
             double res;
