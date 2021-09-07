@@ -14,10 +14,13 @@
 
 using namespace std;
 
+
+
+
 namespace particle_filter
 {
 
-  ParticleFilter::ParticleFilter(costmap_2d::Costmap2DROS *costmap_ros) : nh_{"particle_filter"}
+  ParticleFilter::ParticleFilter(costmap_2d::Costmap2DROS *costmap_ros, costmap_2d::Costmap2DROS *distance_costmap) : nh_{"particle_filter"}
   {
 
     ROS_INFO("Inside the ParticleFilter constructor! \n");
@@ -75,7 +78,25 @@ namespace particle_filter
 
     ROS_INFO("Printing from inside the constructor!\n");
     ROS_INFO("ang_inc_scan: %f\n", ang_inc_scan);
+  
+    ///distance_costmap
+    distance_costmap_ = distance_costmap->getCostmap();
+
+    ROS_INFO("Sleeping for 2 seconds!\n");
+
+    ros::Duration(2.0).sleep();
+
+    for(int  i= 1500; i < 2000; i++) for(int j = 1500; j < 2000; j++) {
+
+      distance_costmap_->setCost(i, j, costmap_2d::LETHAL_OBSTACLE);
+
+    }
+
+
   }
+
+
+
 
   void ParticleFilter::run_filter_()
   {
@@ -125,6 +146,8 @@ namespace particle_filter
 
     //perform_measurement_update();
     perform_measurement_update();
+
+
 
     resample_weights();
 
@@ -281,6 +304,29 @@ namespace particle_filter
   void ParticleFilter::resample_weights()
   {
 
+    int zero_cnt =0 ;
+
+    for(int i = 0; i < num_particles; i++) { 
+
+      geometry_msgs::PoseStamped curr_particle = particle_list_[i];
+
+      double wx_ = particle_list_[i].pose.position.x, wy_ = particle_list_[i].pose.position.y; 
+      __uint32_t mx_, my_; 
+
+      costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
+
+      if(mx_ < map_xi || mx_ > map_xf || my_ < map_yi || my_ > map_yf) {
+
+        weight_list_[i] = 0 ;
+        zero_cnt++;
+      
+      }
+
+
+    }
+
+    ROS_INFO("zero_cnt: %d\n", zero_cnt);
+
     vector<double> cum_weights;
     vector<int> resampled_particle_list;
     vector<geometry_msgs::PoseStamped> resampled_particles_;
@@ -324,7 +370,7 @@ namespace particle_filter
 
       resampled_particle_list.push_back(counter);
 
-      geometry_msgs::PoseStamped new_particle = particle_list_[counter];
+      /*geometry_msgs::PoseStamped new_particle = particle_list_[counter];
       
       double x_ = new_particle.pose.position.x, y_ = new_particle.pose.position.y;
 
@@ -340,16 +386,22 @@ namespace particle_filter
       new_particle.pose.orientation.x = q_[1];
       new_particle.pose.orientation.x = q_[2];
       new_particle.pose.orientation.x = q_[3];
-
+      
       resampled_particles_.push_back(new_particle);
+      */
+
+      resampled_particles_.push_back(particle_list_[counter]);
 
       unique_particles.insert(counter);
+    
     }
 
     publish_weighted_resampled_marker_array(resampled_particles_);
     publish_particle_list_(resampled_particles_);
 
     ROS_INFO("unique_particles: %d\n", unique_particles.size());
+    ROS_INFO("resampled_particles_list.size(): %d\n", resampled_particle_list.size());
+
   }
 
   void ParticleFilter::publish_weighted_resampled_marker_array(const vector<geometry_msgs::PoseStamped> &resampled_particles_)
@@ -376,10 +428,6 @@ namespace particle_filter
 
       double wx_ = particle_list_[i].pose.position.x, wy_ = particle_list_[i].pose.position.y;
 
-      //__uint32_t mx_ = particle_list_[i].pose, my_ = particle_list_[i].second;
-
-      //costmap_ros_->mapToWorld(mx_, my_,wx_, wy_);
-
       marker.pose.position.x = wx_;
       marker.pose.position.y = wy_;
       marker.pose.position.z = 0;
@@ -389,23 +437,21 @@ namespace particle_filter
       marker.pose.orientation.z = 0.0;
       marker.pose.orientation.w = 1.0;
 
-      marker.scale.x = normalized_weight_list[i] * num_particles ;
-      marker.scale.y = normalized_weight_list[i] * num_particles ;
+      marker.scale.x = 0.5;
+      marker.scale.y = 0.5;
 
-      //marker.scale.x = weight_list_[i] ;
-      //marker.scale.y = weight_list_[i];
-
+      marker.color.a = normalized_weight_list[i] * 100 ;
+      
       marker.scale.z = 1.0;
 
       marker.color.r = 0.0f;
       marker.color.g = 0.0f;
       marker.color.b = 1.0f;
 
-      marker.color.a = 1.0;
-
       marker.lifetime = ros::Duration();
 
       marker_array.markers.push_back(marker);
+    
     }
 
     resampled_weighted_marker_array_pub.publish(marker_array);
@@ -433,10 +479,6 @@ namespace particle_filter
 
       double wx_ = particle_list_[i].pose.position.x, wy_ = particle_list_[i].pose.position.y;
 
-      //__uint32_t mx_ = particle_list_[i].pose, my_ = particle_list_[i].second;
-
-      //costmap_ros_->mapToWorld(mx_, my_,wx_, wy_);
-
       marker.pose.position.x = wx_;
       marker.pose.position.y = wy_;
       marker.pose.position.z = 0;
@@ -446,18 +488,19 @@ namespace particle_filter
       marker.pose.orientation.z = 0.0;
       marker.pose.orientation.w = 1.0;
 
-      marker.scale.x = normalized_weight_list[i] * num_particles ;
-      marker.scale.y = normalized_weight_list[i] * num_particles ;
+      //marker.scale.x = normalized_weight_list[i] * num_particles ;
+      //marker.scale.y = normalized_weight_list[i] * num_particles ;
 
-      //marker.scale.x = weight_list_[i] ;
-      //marker.scale.y = weight_list_[i];
+      marker.scale.x =1 ; 
+      marker.scale.y = 1; 
 
       marker.scale.z = 1.0;
 
       marker.color.r = 0.0f;
       marker.color.g = 1.0f;
       marker.color.b = 0.0f;
-      marker.color.a = 1.0;
+      
+      marker.color.a = normalized_weight_list[i] * 100;
 
       marker.lifetime = ros::Duration();
 
@@ -577,18 +620,40 @@ namespace particle_filter
 
   void ParticleFilter::delete_all_markers()
   {
+    
+    visualization_msgs::MarkerArray marker_array;
 
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = "map";
-    marker.ns = nh_.getNamespace();
+  
+      visualization_msgs::Marker marker;
 
-    marker.type = visualization_msgs::Marker::CUBE;
-    marker.action = visualization_msgs::Marker::DELETEALL;
+      marker.header.frame_id = "map";
+      marker.header.stamp = ros::Time::now();
 
-    marker.id = marker_id_cnt++;
-    marker.header.stamp = ros::Time();
+      marker.ns = nh_.getNamespace();
+      marker.id = marker_id_cnt++;
 
-    goal_marker_pub.publish(marker);
+      marker.type = visualization_msgs::Marker::SPHERE;
+
+      marker.action = visualization_msgs::Marker::DELETEALL;
+
+      marker.scale.x = 1.0;
+      marker.scale.y = 1.0;
+      marker.scale.z = 1.0;
+
+      marker.color.r = 0.0f;
+      marker.color.g = 1.0f;
+      marker.color.b = 0.0f;
+      marker.color.a = 1.0;
+
+      marker.lifetime = ros::Duration();
+
+      marker_array.markers.push_back(marker);
+    
+    //goal_marker_pub.publish(marker);
+    marker_array_pub.publish(marker_array);
+    weighted_marker_array_pub.publish(marker_array);
+    resampled_weighted_marker_array_pub.publish(marker_array);
+  
   }
 
   void ParticleFilter::initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg)
@@ -625,6 +690,7 @@ namespace particle_filter
 
     ROS_INFO("cell_cost[%lu][%lu]: %lu\n", mx_, my_, costmap_ros_->getCost(mx_, my_));
 
+    
     /*geometry_msgs::PoseStamped particle_pose_;
 
     particle_pose_.header = msg->header;
@@ -749,6 +815,7 @@ namespace particle_filter
         ROS_INFO("Bot has moved 1 meter in odom frame prev_x: %d prev_y: %d curr_x: %d curr_y: %d \n", prev_odom_.pose.pose.position.x, prev_odom_.pose.pose.position.y, curr_odom_.pose.pose.position.x, curr_odom_.pose.pose.position.y);
         perform_motion_model_update();
 
+        delete_all_markers();
         laserscan_flag = true;
       }
     }
@@ -1028,22 +1095,3 @@ namespace particle_filter
   }
 
 };
-
-int main(int argc, char **argv)
-{
-
-  ros::init(argc, argv, "pf");
-
-  tf2_ros::Buffer buffer(ros::Duration(10));
-  tf2_ros::TransformListener tf(buffer);
-
-  costmap_2d::Costmap2DROS *costmap_ros = new costmap_2d::Costmap2DROS("global_costmap", buffer);
-
-  particle_filter::ParticleFilter *pf = new particle_filter::ParticleFilter(costmap_ros);
-
-  pf->run_filter_();
-
-  ros::spin();
-
-  return 0;
-}

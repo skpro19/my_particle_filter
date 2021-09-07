@@ -33,6 +33,11 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCL
 
     <rosparam file="$(find my_particle_filter)/config/costmap_global_static.yaml" command="load" ns="global_costmap" unless="$(arg no_static_map)"/>
     
+    <rosparam file="$(find my_particle_filter)/config/costmap_common.yaml" command="load" ns="distance_costmap" />
+
+    <rosparam file="$(find my_particle_filter)/config/costmap_global_static.yaml" command="load" ns="distance_costmap" unless="$(arg no_static_map)"/>
+    
+
   </node>
 
 </launch>

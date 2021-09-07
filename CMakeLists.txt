@@ -211,8 +211,8 @@ include_directories(
 # )
 
 
-add_executable(particle_filter src/particle_filter.cpp)
-target_link_libraries(particle_filter ${catkin_LIBRARIES} )
+add_executable(particle_filter src/main.cpp src/particle_filter.cpp src/measurement_model.cpp)
+target_link_libraries(particle_filter ${catkin_LIBRARIES})
 
 
 #############
