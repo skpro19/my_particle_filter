@@ -8,7 +8,6 @@ namespace particle_filter{
 
         //map_bounds
         map_xi = map_bounds[0], map_xf = map_bounds[1];
-
         map_yi = map_bounds[2], map_yf = map_bounds[3];
         
         //fixed params 
@@ -22,8 +21,75 @@ namespace particle_filter{
         //variable params
         num_beams = 4;
 
+    }   
+
+    void MeasurementModel::run_measurement_model(const vector<geometry_msgs::PoseStamped> &particle_list){
+
+        initialized_ = true;
+        particles_ = particle_list;
 
     }
+
+    double MeasurementModel::get_yaw_from_quaternion(tf2::Quaternion &q_){
+
+        float t3 = +2.0 * (q_[3] * q_[2] + q_[0] * q_[1]);
+        float t4 = +1.0 - 2.0 * (q_[1] * q_[1] + q_[2] * q_[2]);
+
+        float yaw_ = atan2(t3, t4);
+
+        return yaw_;
+        
+    }
+
+
+    void MeasurementModel::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg){
+
+        if (!initialized_){
+        
+            return;
+        
+        }
+
+        double sensor_ang_inc = msg->angle_increment; 
+
+        double target_ang_inc = (msg->angle_max - msg->angle_min)/(num_beams -1);
+        
+        int mul = target_ang_inc / sensor_ang_inc;
+
+        ROS_INFO("mul: %d\n", mul);
+
+        for(int i =0 ; i < (int)particles_.size(); i++) {
+
+            vector<double> Z_;
+
+            for(int j = 0 ; j < msg->ranges.size(); j+= mul){
+
+                Z_.push_back(msg->ranges[j]);
+
+            }
+
+            tf2::Quaternion q_ = {particles_[i].pose.orientation.x, particles_[i].pose.orientation.y, particles_[i].pose.orientation.z, particles_[i].pose.orientation.w};
+            double theta_ = get_yaw_from_quaternion(q_);
+
+            vector<double> particle_pose_coords = {particles_[i].pose.position.x, particles_[i].pose.position.y, theta_};
+            
+            double prob_ = likelihood_field_range_finder_model(Z_, particle_pose_coords);
+
+            ROS_INFO("prob_ for %dth particle: %f\n", i, prob_);
+
+        }
+
+        initialized_ = false;
+    
+    }
+
+    void MeasurementModel::initialize_subscribers(){
+        
+        ros::NodeHandle dummy_nh_("");
+        laserscan_sub = dummy_nh_.subscribe("scan", 100, &MeasurementModel::laserscan_callback, this);
+    
+    }
+
 
     MeasurementModel::MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros, const vector<int> &map_bounds){
         
@@ -33,7 +99,11 @@ namespace particle_filter{
         costmap_ros_ = costmap_ros->getCostmap();
 
         initialize_model_params(map_bounds);
-    
+
+        initialize_subscribers();
+
+        initialized_ = false;
+
     }
 
 
@@ -45,6 +115,8 @@ namespace particle_filter{
         return prob;
 
     }
+
+    
 
     pair<double, double> MeasurementModel::get_closest_occupied_cell_from_(double x_k, double y_k) {
 
@@ -86,6 +158,12 @@ namespace particle_filter{
 
                         found_ = 1; 
                         target_cell_ = {i,j}; 
+
+                    }
+
+                    else {
+
+                        q_.push({i,j});
 
                     }
                 }

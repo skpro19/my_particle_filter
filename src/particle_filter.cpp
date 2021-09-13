@@ -1,5 +1,5 @@
 #include <my_particle_filter/particle_filter.h>
-#include <cstdlib>
+  #include <cstdlib>
 #include <random>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
@@ -20,7 +20,7 @@ using namespace std;
 namespace particle_filter
 {
 
-  ParticleFilter::ParticleFilter(costmap_2d::Costmap2DROS *costmap_ros, costmap_2d::Costmap2DROS *distance_costmap) : nh_{"particle_filter"}
+  ParticleFilter::ParticleFilter(costmap_2d::Costmap2DROS *costmap_ros) : nh_{"particle_filter"}
   {
 
     ROS_INFO("Inside the ParticleFilter constructor! \n");
@@ -31,7 +31,7 @@ namespace particle_filter
     size_x = costmap_ros_->getSizeInCellsX();
     size_y = costmap_ros_->getSizeInCellsY();
 
-    num_particles = 600;
+    num_particles = 10;
 
     update_map_bounds();
 
@@ -46,7 +46,7 @@ namespace particle_filter
 
     marker_id_cnt = 0;
 
-    //Class Publlishers
+    //Class Publishers
     particle_pose_array_pub_ = nh_.advertise<geometry_msgs::PoseArray>("particle_pose", 10000, true);
     fake_laser_pub = nh_.advertise<sensor_msgs::LaserScan>("fake_laser_scan", 100, true);
     real_laser_pub = nh_.advertise<sensor_msgs::LaserScan>("real_laser_scan", 100, true);
@@ -80,19 +80,18 @@ namespace particle_filter
     ROS_INFO("ang_inc_scan: %f\n", ang_inc_scan);
   
     ///distance_costmap
-    distance_costmap_ = distance_costmap->getCostmap();
-
+    
     ROS_INFO("Sleeping for 2 seconds!\n");
 
     ros::Duration(2.0).sleep();
 
-    for(int  i= 1500; i < 2000; i++) for(int j = 1500; j < 2000; j++) {
+    vector<int> map_bounds_ = {map_xi, map_xf, map_yi, map_yf};
 
-      distance_costmap_->setCost(i, j, costmap_2d::LETHAL_OBSTACLE);
+    //initialize measurement_model object
+    measurement_model = new particle_filter::MeasurementModel(my_costmap_ros, map_bounds_);
 
-    }
-
-
+    run_filter_();
+    
   }
 
 
@@ -105,7 +104,10 @@ namespace particle_filter
     initialize_particles_vector();
     publish_particle_list_(particle_list_);
 
-    geometry_msgs::PoseStamped particle_pose_;
+    measurement_model->run_measurement_model(particle_list_);
+    
+    
+    /*geometry_msgs::PoseStamped particle_pose_;
     my_costmap_ros->getRobotPose(particle_pose_);
 
     double wx_, wy_;
@@ -116,6 +118,8 @@ namespace particle_filter
     costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
 
     ROS_INFO("wx_ %f wy_: %f mx_: %lu my_: %lu \n", wx_, wy_, mx_, my_);
+    */
+  
   }
 
   void ParticleFilter::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg)
@@ -918,6 +922,9 @@ namespace particle_filter
 
       particle_list_.push_back(particle_);
     }
+
+
+
   }
 
 

@@ -25,15 +25,7 @@ int main(int argc, char **argv)
 
   costmap_2d::Costmap2DROS *my_costmap_ros = new costmap_2d::Costmap2DROS("global_costmap", buffer);
 
-  //particle_filter::ParticleFilter *pf = new particle_filter::ParticleFilter(costmap_ros, distance_costmap_ros);
-
-  //pf->run_filter_();
-
-  //particle_filter::Costmap_  *cm = new particle_filter::Costmap_(buffer);
-
-  //cm->update_costmap_bounds();
-
-  particle_filter::MeasurementModel *measurement_model = new particle_filter::MeasurementModel(my_costmap_ros);
+  particle_filter::ParticleFilter *pf = new particle_filter::ParticleFilter(my_costmap_ros);
 
   ros::spin();
 

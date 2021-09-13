@@ -26,6 +26,11 @@ namespace particle_filter {
             std::pair<double, double> get_closest_occupied_cell_from_(double x_k, double y_k);
             double compute_prob_zero_centered_gaussian(double dist, double sd);
             void initialize_model_params(const std::vector<int> &map_bounds);
+            void run_measurement_model(const std::vector<geometry_msgs::PoseStamped> &particles_);
+            void laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg);
+            void initialize_subscribers();
+            double get_yaw_from_quaternion(tf2::Quaternion &q_);
+
 
         private:
 
@@ -39,6 +44,11 @@ namespace particle_filter {
             int map_xi, map_xf; 
             int map_yi, map_yf;
 
+            bool initialized_;
+            
+            std::vector<geometry_msgs::PoseStamped> particles_;
+            ros::Subscriber laserscan_sub;
+            
 
     };
 

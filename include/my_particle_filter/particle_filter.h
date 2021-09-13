@@ -1,3 +1,4 @@
+#include <my_particle_filter/measurement_model.h>
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <geometry_msgs/Pose.h>
@@ -5,6 +6,7 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/LaserScan.h>
+
 
 
 #ifndef PARTICLE_FILTER_CPP
@@ -20,7 +22,7 @@ namespace particle_filter {
         
         public: 
 
-            ParticleFilter(costmap_2d::Costmap2DROS* costmap_ros, costmap_2d::Costmap2DROS* distance_costmap);
+            ParticleFilter(costmap_2d::Costmap2DROS* costmap_ros);
             void update_map_bounds();
             void update_particle_with_measurement_model();
             void initialize_particles_vector();
@@ -48,7 +50,6 @@ namespace particle_filter {
             void publish_weighted_resampled_marker_array(const std::vector<geometry_msgs::PoseStamped>&resampled_particles_);
             geometry_msgs::PoseStamped return_noisy_particle(geometry_msgs::PoseStamped &particle_);
             
-    
 
 
 
@@ -73,7 +74,9 @@ namespace particle_filter {
             int dis_index[4000][4000];
             int vis_index[4000][4000];
             int marker_id_cnt;
-            
+
+            //measurement model object
+            MeasurementModel* measurement_model;
 
 
             //ros::Publisher global_plan_pub, goal_marker_pub;
@@ -95,8 +98,7 @@ namespace particle_filter {
             double laser_cov;
 
             //distance_costmap
-            costmap_2d::Costmap2D* distance_costmap_;
-
+            
     };
 
 
