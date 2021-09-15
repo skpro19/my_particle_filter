@@ -31,7 +31,7 @@ namespace particle_filter
     size_x = costmap_ros_->getSizeInCellsX();
     size_y = costmap_ros_->getSizeInCellsY();
 
-    num_particles = 10;
+    num_particles = 100;
 
     update_map_bounds();
 
@@ -85,11 +85,9 @@ namespace particle_filter
 
     ros::Duration(2.0).sleep();
 
-    vector<int> map_bounds_ = {map_xi, map_xf, map_yi, map_yf};
-
+    
     //initialize measurement_model object
-    measurement_model = new particle_filter::MeasurementModel(my_costmap_ros, map_bounds_);
-
+    
     run_filter_();
     
   }
@@ -104,9 +102,18 @@ namespace particle_filter
     initialize_particles_vector();
     publish_particle_list_(particle_list_);
 
-    measurement_model->run_measurement_model(particle_list_);
+    vector<int> map_bounds_ = {map_xi, map_xf, map_yi, map_yf};
+
+    measurement_model = new particle_filter::MeasurementModel(my_costmap_ros, map_bounds_, particle_list_);
+    measurement_model->run_measurement_model();
     
+    //vector<geometry_msgs::PoseStamped> resampled_particles_ = measurement_model->resample_weights();
     
+    //ROS_INFO("Publishing resampled particles list! --- Sleeping for 2 seconds\n");
+    //ros::Duration(2.0).sleep();
+
+    //publish_particle_list_(resampled_particles_);
+
     /*geometry_msgs::PoseStamped particle_pose_;
     my_costmap_ros->getRobotPose(particle_pose_);
 
@@ -663,7 +670,7 @@ namespace particle_filter
   void ParticleFilter::initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg)
   {
 
-    ROS_INFO("Subscribed to the initialpose topic! \n");
+    /*ROS_INFO("Subscribed to the initialpose topic! \n");
 
     delete_all_markers();
 
@@ -695,7 +702,7 @@ namespace particle_filter
     ROS_INFO("cell_cost[%lu][%lu]: %lu\n", mx_, my_, costmap_ros_->getCost(mx_, my_));
 
     
-    /*geometry_msgs::PoseStamped particle_pose_;
+    geometry_msgs::PoseStamped particle_pose_;
 
     particle_pose_.header = msg->header;
     particle_pose_.pose = msg->pose.pose;

@@ -4,8 +4,9 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseArray.h>
 #include <sensor_msgs/LaserScan.h>
-
+#include <visualization_msgs/Marker.h>
 
 #ifndef MEASUREMENT_MODEL_CPP
 #define MEASUREMENT_MODEL_CPP
@@ -21,16 +22,20 @@ namespace particle_filter {
 
         public: 
 
-            MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros, const std::vector<int> &map_bounds);
+            MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros, const std::vector<int> &map_bounds,const std::vector<geometry_msgs::PoseStamped> &particles);
             double likelihood_field_range_finder_model(const std::vector<double> &Z_, const std::vector<double> &particle_pose_coords);
             std::pair<double, double> get_closest_occupied_cell_from_(double x_k, double y_k);
             double compute_prob_zero_centered_gaussian(double dist, double sd);
             void initialize_model_params(const std::vector<int> &map_bounds);
-            void run_measurement_model(const std::vector<geometry_msgs::PoseStamped> &particles_);
+            void run_measurement_model();
             void laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg);
-            void initialize_subscribers();
+            void initialize_subscribers_and_publishers();
             double get_yaw_from_quaternion(tf2::Quaternion &q_);
-
+            void initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg);
+            void publish_marker(std::pair<__uint32_t, __uint32_t> point_);
+            std::vector<geometry_msgs::PoseStamped> resample_weights(const std::vector<double> &normalized_weights_);    
+            std::vector<double> normalize_particle_weights(const std::vector<double> &weights_);
+            void publish_particle_list_(const std::vector<geometry_msgs::PoseStamped>&particle_list_);
 
         private:
 
@@ -47,9 +52,11 @@ namespace particle_filter {
             bool initialized_;
             
             std::vector<geometry_msgs::PoseStamped> particles_;
-            ros::Subscriber laserscan_sub;
+            ros::Subscriber laserscan_sub, initial_pose_sub;
+            ros::Publisher goal_marker_pub,particle_pose_array_pub_;            
+            int marker_id_cnt =0;
+            std::vector<double> weights_; 
             
-
     };
 
 
