@@ -31,7 +31,7 @@ namespace particle_filter
     size_x = costmap_ros_->getSizeInCellsX();
     size_y = costmap_ros_->getSizeInCellsY();
 
-    num_particles = 100;
+    num_particles = 10;
 
     update_map_bounds();
 
@@ -59,8 +59,7 @@ namespace particle_filter
     ros::NodeHandle dummy_nh_("");
 
     first_run = true;
-    laserscan_flag = false;
-
+    
     //Subscribers
     odom_sub = dummy_nh_.subscribe("husky_velocity_controller/odom", 100, &ParticleFilter::odom_callback, this);
     initial_pose_sub = dummy_nh_.subscribe("initialpose", 100, &ParticleFilter::initial_pose_callback, this);
@@ -85,10 +84,7 @@ namespace particle_filter
 
     ros::Duration(2.0).sleep();
 
-    
-    //initialize measurement_model object
-    
-    run_filter_();
+    laserscan_flag = false;
     
   }
 
@@ -98,7 +94,7 @@ namespace particle_filter
   void ParticleFilter::run_filter_()
   {
 
-    ROS_INFO("Inside the run_filter function \n");
+    /*ROS_INFO("Inside the run_filter function \n");
     initialize_particles_vector();
     publish_particle_list_(particle_list_);
 
@@ -106,66 +102,60 @@ namespace particle_filter
 
     measurement_model = new particle_filter::MeasurementModel(my_costmap_ros, map_bounds_, particle_list_);
     measurement_model->run_measurement_model();
-    
-    //vector<geometry_msgs::PoseStamped> resampled_particles_ = measurement_model->resample_weights();
-    
-    //ROS_INFO("Publishing resampled particles list! --- Sleeping for 2 seconds\n");
-    //ros::Duration(2.0).sleep();
 
-    //publish_particle_list_(resampled_particles_);
+    while(!measurement_model->laserscan_done) {
 
-    /*geometry_msgs::PoseStamped particle_pose_;
-    my_costmap_ros->getRobotPose(particle_pose_);
+      ROS_INFO("Waiting for the laserscan callback to finish!\n");
+    }
 
-    double wx_, wy_;
-    __uint32_t mx_, my_;
+    ROS_INFO("Outside the measurement_model->run_measurement_model function!\n");
 
-    wx_ = particle_pose_.pose.position.x, wy_ = particle_pose_.pose.position.y;
+    vector<geometry_msgs::PoseStamped> resampled_particles = measurement_model->get_particles();
 
-    costmap_ros_->worldToMap(wx_, wy_, mx_, my_);
+    //ROS_INFO("resampled_particles.size(): %d\n", resampled_particles.size());
 
-    ROS_INFO("wx_ %f wy_: %f mx_: %lu my_: %lu \n", wx_, wy_, mx_, my_);
     */
-  
+    
   }
 
-  void ParticleFilter::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg)
-  {
+  void ParticleFilter::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg){
 
-    if (!laserscan_flag)
-    {
-      return;
+
+        if (!laserscan_flag){
+        
+            return;
+        
+        }
+        
+        measurement_model = new particle_filter::MeasurementModel(my_costmap_ros, particle_list_);
+
+        int num_beams_ = measurement_model->num_beams;
+
+        double sensor_ang_inc = msg->angle_increment; 
+
+        double target_ang_inc = (msg->angle_max - msg->angle_min)/(num_beams_ -1);
+        
+        int mul = target_ang_inc / sensor_ang_inc;
+
+        ROS_INFO("mul: %d\n", mul);
+
+        vector<double> Z_;
+
+        for(int j = 0 ; j < msg->ranges.size(); j+= mul){
+
+            Z_.push_back(msg->ranges[j]);
+
+        }
+
+        measurement_model->run_measurement_model(Z_);
+
+        particle_list_ = measurement_model->get_particles();
+
+        publish_particle_list_(particle_list_);
+
+        laserscan_flag = false;
+        
     }
-
-    ROS_INFO("Inside the laserscan_callback function! \n");
-
-    double ang_inc = msg->angle_increment;
-
-    int mul = ang_inc_scan / ang_inc;
-
-    ROS_INFO("mul: %d\n", mul);
-
-    laserscan_ranges.resize(0);
-
-    for (double i = 0; i < msg->ranges.size(); i += mul)
-    {
-
-      laserscan_ranges.push_back(msg->ranges[i]);
-    }
-
-    ROS_INFO("laserscan_ranges.size(): %d\n", laserscan_ranges.size());
-
-    //perform_measurement_update();
-    perform_measurement_update();
-
-
-
-    resample_weights();
-
-    prev_odom_ = curr_odom_;
-
-    laserscan_flag = false;
-  }
 
   double ParticleFilter::Gaussian(double mu, double sigma, double x)
   {
@@ -726,6 +716,10 @@ namespace particle_filter
     laserscan_flag = true;
   
     */
+  
+    laserscan_flag =  true;
+
+  
   }
 
   float ParticleFilter::get_yaw_from_quaternion(tf2::Quaternion &q_)

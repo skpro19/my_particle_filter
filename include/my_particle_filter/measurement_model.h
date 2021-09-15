@@ -22,24 +22,27 @@ namespace particle_filter {
 
         public: 
 
-            MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros, const std::vector<int> &map_bounds,const std::vector<geometry_msgs::PoseStamped> &particles);
+            MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros,const std::vector<geometry_msgs::PoseStamped> &particles);
             double likelihood_field_range_finder_model(const std::vector<double> &Z_, const std::vector<double> &particle_pose_coords);
             std::pair<double, double> get_closest_occupied_cell_from_(double x_k, double y_k);
             double compute_prob_zero_centered_gaussian(double dist, double sd);
-            void initialize_model_params(const std::vector<int> &map_bounds);
-            void run_measurement_model();
-            void laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg);
+            void initialize_model_params();
+            void run_measurement_model(const std::vector<double> &Z_);
+            //void laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg);
             void initialize_subscribers_and_publishers();
             double get_yaw_from_quaternion(tf2::Quaternion &q_);
-            void initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg);
+            //void initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg);
             void publish_marker(std::pair<__uint32_t, __uint32_t> point_);
             std::vector<geometry_msgs::PoseStamped> resample_weights(const std::vector<double> &normalized_weights_);    
             std::vector<double> normalize_particle_weights(const std::vector<double> &weights_);
             void publish_particle_list_(const std::vector<geometry_msgs::PoseStamped>&particle_list_);
-
-        private:
+            void set_particles(const std::vector<geometry_msgs::PoseStamped> &particle_list_);
+            std::vector<geometry_msgs::PoseStamped> get_particles();
 
             int num_beams;
+            
+        private:
+
             costmap_2d::Costmap2DROS *costmap_ros;
             costmap_2d::Costmap2D* costmap_ros_;
             double z_max; 
@@ -48,9 +51,7 @@ namespace particle_filter {
 
             int map_xi, map_xf; 
             int map_yi, map_yf;
-
-            bool initialized_;
-            
+      
             std::vector<geometry_msgs::PoseStamped> particles_;
             ros::Subscriber laserscan_sub, initial_pose_sub;
             ros::Publisher goal_marker_pub,particle_pose_array_pub_;            

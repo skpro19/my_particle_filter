@@ -5,27 +5,25 @@ using namespace std;
 namespace particle_filter{
 
     
-    MeasurementModel::MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros, const vector<int> &map_bounds, const vector<geometry_msgs::PoseStamped> &particle_list_){
+    MeasurementModel::MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros, const vector<geometry_msgs::PoseStamped> &particle_list_){
         
         ROS_INFO("Inside the measurement model constructor!\n");
 
         costmap_ros = my_costmap_ros;
         costmap_ros_ = costmap_ros->getCostmap();
 
-        initialize_model_params(map_bounds);
+        initialize_model_params();
 
         initialize_subscribers_and_publishers();
 
         particles_ = particle_list_;
 
-        initialized_ = false;
-
+        
     }
     
-    void MeasurementModel::initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg){
+    /*void MeasurementModel::initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg){
 
-        initialized_ = true;
-
+        
         ROS_INFO("initial_pose_callback called!\n");
 
         double wx_ = msg->pose.pose.position.x, wy_ = msg->pose.pose.position.y;
@@ -49,24 +47,30 @@ namespace particle_filter{
         ROS_INFO("cx_: %d cy_: %d\n", cx_, cy_);
 
 
-    }
+    }*/
 
 
-    void MeasurementModel::initialize_model_params(const vector<int> &map_bounds){
+    void MeasurementModel::initialize_model_params(){
 
         //map_bounds
+        /*
+        
         map_xi = map_bounds[0], map_xf = map_bounds[1];
         map_yi = map_bounds[2], map_yf = map_bounds[3];
         
+        */
+
         double wx_i, wx_f, wy_i, wy_f;
         costmap_ros_->mapToWorld(map_xi, map_yi, wx_i, wy_i);
         costmap_ros_->mapToWorld(map_xf, map_yf, wx_f, wy_f);
 
+        /*
         ROS_INFO("map_xi: %d map_xf: %d\n", map_xi, map_xf);
         ROS_INFO("map_yi: %d map_yf: %d\n", map_yi, map_yf);
         ROS_INFO("wx_i: %f wx_f: %f\n", wx_i, wx_f);
         ROS_INFO("wy_i: %f wy_f: %f\n", wy_i, wy_f);
-
+        */
+        
         //fixed params 
         z_max = 20; 
 
@@ -147,10 +151,42 @@ namespace particle_filter{
      }
 
 
-    void MeasurementModel::run_measurement_model(){
+    void MeasurementModel::run_measurement_model(const vector<double> &Z_){
+        
+        weights_.resize(0);
+        
+        for(int i =0 ; i < (int)particles_.size(); i++) {
 
-        initialized_ = false;
-        //particles_ = particle_list;
+            tf2::Quaternion q_ = {particles_[i].pose.orientation.x, particles_[i].pose.orientation.y, particles_[i].pose.orientation.z, particles_[i].pose.orientation.w};
+            double theta_ = get_yaw_from_quaternion(q_);
+
+            vector<double> particle_pose_coords = {particles_[i].pose.position.x, particles_[i].pose.position.y, theta_};
+            
+            double prob_ = likelihood_field_range_finder_model(Z_, particle_pose_coords);
+
+            weights_.push_back(prob_);
+
+            ROS_INFO("prob_ for %dth particle: %f\n", i, prob_);
+
+        }
+
+        vector<double> normalized_weights_ = normalize_particle_weights(weights_);
+
+        vector<geometry_msgs::PoseStamped> resampled_particles_ = resample_weights(normalized_weights_);
+
+        ROS_INFO("resmapled_particles_.size(): %d\n", resampled_particles_.size());
+
+        int num_particles = (int)particles_.size();
+
+        for(int i =0 ; i < num_particles; i++){
+
+            ROS_INFO("weights_[%d]: %f normalized_weights_[%d]: %f\n", i,  weights_[i], i, normalized_weights_[i]);
+
+        }
+        
+        publish_particle_list_(resampled_particles_);
+
+        set_particles(resampled_particles_);
 
     }
 
@@ -166,7 +202,7 @@ namespace particle_filter{
     }
 
 
-    void MeasurementModel::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg){
+    /*void MeasurementModel::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg){
         
         
         if (!initialized_){
@@ -175,6 +211,8 @@ namespace particle_filter{
         
         }
   
+        laserscan_done = false;
+
         weights_.resize(0);
         
         double sensor_ang_inc = msg->angle_increment; 
@@ -224,10 +262,24 @@ namespace particle_filter{
         
         publish_particle_list_(resampled_particles_);
 
+        set_particles(resampled_particles_);
+
+        laserscan_done = true;
         initialized_ = false;
     
+    }*/
+
+    void MeasurementModel::set_particles(const vector<geometry_msgs::PoseStamped> &particle_list_){
+
+        particles_ = particle_list_;
+
     }
 
+    vector<geometry_msgs::PoseStamped> MeasurementModel::get_particles(){
+
+        return particles_;
+
+    }
 
     void MeasurementModel::publish_particle_list_(const vector<geometry_msgs::PoseStamped>&particle_list_){
 
@@ -279,8 +331,8 @@ namespace particle_filter{
     void MeasurementModel::initialize_subscribers_and_publishers(){
         
         ros::NodeHandle dummy_nh_("");
-        laserscan_sub = dummy_nh_.subscribe("scan", 100, &MeasurementModel::laserscan_callback, this);
-        initial_pose_sub = dummy_nh_.subscribe("initialpose", 100, &MeasurementModel::initial_pose_callback, this);
+        //laserscan_sub = dummy_nh_.subscribe("scan", 100, &MeasurementModel::laserscan_callback, this);
+        //initial_pose_sub = dummy_nh_.subscribe("initialpose", 100, &MeasurementModel::initial_pose_callback, this);
 
         goal_marker_pub = dummy_nh_.advertise<visualization_msgs::Marker>("goal_markers", 10000);
         particle_pose_array_pub_ = dummy_nh_.advertise<geometry_msgs::PoseArray>("particle_pose", 10000, true);
