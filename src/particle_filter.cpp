@@ -84,6 +84,9 @@ namespace particle_filter
 
     ros::Duration(2.0).sleep();
 
+    initialize_particles_vector();
+    publish_particle_list_(particle_list_);
+
     laserscan_flag = false;
     
   }
@@ -147,11 +150,27 @@ namespace particle_filter
 
         }
 
+        ROS_INFO("Z_.size(): %d\n", Z_.size());
+
+        int flag_ = ((int)Z_.size() == num_beams_);
+
+        if(!flag_){
+          
+          ROS_INFO("Something is wrong --- Z_.size() != num_beams_ \n");
+
+        }
+
+        for(int i =0 ;i < (int)Z_.size(); i++){
+          
+          ROS_INFO("Z_[%d]: %f\n", i, Z_[i]);
+
+        }
+
         measurement_model->run_measurement_model(Z_);
 
         particle_list_ = measurement_model->get_particles();
-
-        publish_particle_list_(particle_list_);
+        
+        //publish_particle_list_(particle_list_);
 
         laserscan_flag = false;
         

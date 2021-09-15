@@ -7,6 +7,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <sensor_msgs/LaserScan.h>
 #include <visualization_msgs/Marker.h>
+#include <random>
 
 #ifndef MEASUREMENT_MODEL_CPP
 #define MEASUREMENT_MODEL_CPP
@@ -33,11 +34,12 @@ namespace particle_filter {
             double get_yaw_from_quaternion(tf2::Quaternion &q_);
             //void initial_pose_callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &msg);
             void publish_marker(std::pair<__uint32_t, __uint32_t> point_);
-            std::vector<geometry_msgs::PoseStamped> resample_weights(const std::vector<double> &normalized_weights_);    
+            std::vector<geometry_msgs::PoseStamped> resampled_particles(const std::vector<double> &normalized_weights_);    
             std::vector<double> normalize_particle_weights(const std::vector<double> &weights_);
             void publish_particle_list_(const std::vector<geometry_msgs::PoseStamped>&particle_list_);
             void set_particles(const std::vector<geometry_msgs::PoseStamped> &particle_list_);
             std::vector<geometry_msgs::PoseStamped> get_particles();
+            void add_noise_to_resampled_particles(std::vector<geometry_msgs::PoseStamped> &resampled_particles_);
 
             int num_beams;
             

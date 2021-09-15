@@ -84,7 +84,7 @@ namespace particle_filter{
 
     }   
 
-    vector<geometry_msgs::PoseStamped> MeasurementModel::resample_weights(const vector<double> &normalized_weights_){
+    vector<geometry_msgs::PoseStamped> MeasurementModel::resampled_particles(const vector<double> &normalized_weights_){
         
         ROS_INFO("Inside the resample_weights function!\n");
 
@@ -150,11 +150,67 @@ namespace particle_filter{
 
      }
 
+    void MeasurementModel::add_noise_to_resampled_particles(vector<geometry_msgs::PoseStamped> &resampled_particles_){
+
+        std::vector<double> data = {1., 2., 3., 4., 5., 6.};
+
+        const double mean = 0.0;
+        const double position_stddev = 1, orientation_stddev = acos(-1)/12.0;
+        
+        std::default_random_engine position_gen, orientation_gen;
+        
+        std::normal_distribution<double> position_dist(mean, position_stddev), orientation_dist(mean, orientation_stddev);
+
+        int num_particles_ = (int)resampled_particles_.size();
+
+        for(int i = 0 ; i < num_particles_; i++) {
+
+            double x_ = resampled_particles_[i].pose.position.x; 
+            double y_ = resampled_particles_[i].pose.position.y;
+
+            tf2::Quaternion q_ = {resampled_particles_[i].pose.orientation.x, resampled_particles_[i].pose.orientation.y, resampled_particles_[i].pose.orientation.z, resampled_particles_[i].pose.orientation.w};
+            double theta_ = get_yaw_from_quaternion(q_);
+            
+            ROS_INFO("x_: %f y_: %f theta_: %f\n", x_, y_, theta_);
+            
+            x_ = x_ + position_dist(position_gen);
+            y_ = y_ + position_dist(position_gen);
+
+            theta_ = theta_ + orientation_dist(orientation_gen);
+            
+            ROS_INFO("x_: %f y_: %f theta_: %f\n", x_, y_, theta_);
+
+            geometry_msgs::PoseStamped updated_pose = resampled_particles_[i];
+            resampled_particles_[i].pose.position.x = x_; 
+            resampled_particles_[i].pose.position.y = y_;
+            
+            q_.setRPY(0, 0, theta_);
+            q_.normalize();
+
+            updated_pose.pose.orientation.x = q_[0];
+            updated_pose.pose.orientation.y = q_[1];
+            updated_pose.pose.orientation.z = q_[2];
+            updated_pose.pose.orientation.w = q_[3];
+            
+            resampled_particles_[i] = updated_pose;
+
+        }
+
+
+        // Output the result, for demonstration purposes
+        std::copy(begin(data), end(data), std::ostream_iterator<double>(std::cout, " "));
+        std::cout << "\n";
+
+
+    }
+
 
     void MeasurementModel::run_measurement_model(const vector<double> &Z_){
         
         weights_.resize(0);
         
+        //int num_particles_
+
         for(int i =0 ; i < (int)particles_.size(); i++) {
 
             tf2::Quaternion q_ = {particles_[i].pose.orientation.x, particles_[i].pose.orientation.y, particles_[i].pose.orientation.z, particles_[i].pose.orientation.w};
@@ -172,7 +228,7 @@ namespace particle_filter{
 
         vector<double> normalized_weights_ = normalize_particle_weights(weights_);
 
-        vector<geometry_msgs::PoseStamped> resampled_particles_ = resample_weights(normalized_weights_);
+        vector<geometry_msgs::PoseStamped> resampled_particles_ = resampled_particles(normalized_weights_);
 
         ROS_INFO("resmapled_particles_.size(): %d\n", resampled_particles_.size());
 
@@ -184,9 +240,10 @@ namespace particle_filter{
 
         }
         
+        add_noise_to_resampled_particles(resampled_particles_);
         publish_particle_list_(resampled_particles_);
 
-        set_particles(resampled_particles_);
+        //set_particles(resampled_particles_);
 
     }
 
