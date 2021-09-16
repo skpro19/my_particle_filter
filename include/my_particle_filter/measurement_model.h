@@ -24,11 +24,11 @@ namespace particle_filter {
         public: 
 
             MeasurementModel(costmap_2d::Costmap2DROS* my_costmap_ros,const std::vector<geometry_msgs::PoseStamped> &particles);
-            double likelihood_field_range_finder_model(const std::vector<double> &Z_, const std::vector<double> &particle_pose_coords);
+            double likelihood_field_range_finder_model(const std::vector<std::pair<double, double> > &Z_, const std::vector<double> &particle_pose_coords);
             std::pair<double, double> get_closest_occupied_cell_from_(double x_k, double y_k);
             double compute_prob_zero_centered_gaussian(double dist, double sd);
             void initialize_model_params();
-            void run_measurement_model(const std::vector<double> &Z_);
+            void run_measurement_model(const std::vector<std::pair<double, double> > &Z_);
             //void laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg);
             void initialize_subscribers_and_publishers();
             double get_yaw_from_quaternion(tf2::Quaternion &q_);

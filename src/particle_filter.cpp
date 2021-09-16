@@ -31,7 +31,7 @@ namespace particle_filter
     size_x = costmap_ros_->getSizeInCellsX();
     size_y = costmap_ros_->getSizeInCellsY();
 
-    num_particles = 10;
+    num_particles = 20;
 
     update_map_bounds();
 
@@ -85,8 +85,7 @@ namespace particle_filter
     ros::Duration(2.0).sleep();
 
     initialize_particles_vector();
-    publish_particle_list_(particle_list_);
-
+    
     laserscan_flag = false;
     
   }
@@ -129,7 +128,9 @@ namespace particle_filter
             return;
         
         }
-        
+
+        publish_particle_list_(particle_list_);
+    
         measurement_model = new particle_filter::MeasurementModel(my_costmap_ros, particle_list_);
 
         int num_beams_ = measurement_model->num_beams;
@@ -142,11 +143,16 @@ namespace particle_filter
 
         ROS_INFO("mul: %d\n", mul);
 
-        vector<double> Z_;
+        vector<pair<double, double> > Z_;
 
         for(int j = 0 ; j < msg->ranges.size(); j+= mul){
 
-            Z_.push_back(msg->ranges[j]);
+            double range_ = msg->ranges[j];
+            double ang_ = msg->angle_min + j* sensor_ang_inc;
+            
+            ROS_INFO("ang_: %f\n", ang_);
+
+            Z_.push_back({range_, ang_});
 
         }
 
@@ -170,7 +176,7 @@ namespace particle_filter
 
         particle_list_ = measurement_model->get_particles();
         
-        //publish_particle_list_(particle_list_);
+        //lish_particle_list_(particle_list_);
 
         laserscan_flag = false;
         

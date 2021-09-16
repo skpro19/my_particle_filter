@@ -6,10 +6,11 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /PoseArray1
         - /Marker1
         - /Global Costmap1
         - /MarkerArray1
-        - /distance_costmap1
+        - /PoseArray2
       Splitter Ratio: 0.4205882251262665
     Tree Height: 794
   - Class: rviz/Selection
@@ -169,7 +170,7 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Alpha: 1
-      Arrow Length: 0.30000001192092896
+      Arrow Length: 2
       Axes Length: 0.30000001192092896
       Axes Radius: 0.009999999776482582
       Class: rviz/PoseArray
@@ -183,36 +184,6 @@ Visualization Manager:
       Shape: Arrow (Flat)
       Topic: /particle_filter/particle_pose
       Unreliable: false
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 0.4059300124645233
-        Min Value: 0.4059300124645233
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/LaserScan
-      Color: 239; 41; 41
-      Color Transformer: FlatColor
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 999999
-      Min Color: 0; 0; 0
-      Min Intensity: -1.831010023947112e-36
-      Name: FakeLaserScan
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.15000000596046448
-      Style: Flat Squares
-      Topic: /particle_filter/fake_laser_scan
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
       Value: true
     - Class: rviz/Marker
       Enabled: true
@@ -284,15 +255,21 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
-    - Alpha: 0.699999988079071
-      Class: rviz/Map
-      Color Scheme: costmap
-      Draw Behind: true
+    - Alpha: 1
+      Arrow Length: 1
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 0; 0; 0
       Enabled: true
-      Name: distance_costmap
-      Topic: /particle_filter_node/distance_costmap/costmap
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Arrow (Flat)
+      Topic: /particle_pose
       Unreliable: false
-      Use Timestamp: false
       Value: true
   Enabled: true
   Global Options:
@@ -320,7 +297,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 73.28125762939453
+      Distance: 62.32107162475586
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

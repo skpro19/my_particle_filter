@@ -205,7 +205,7 @@ namespace particle_filter{
     }
 
 
-    void MeasurementModel::run_measurement_model(const vector<double> &Z_){
+    void MeasurementModel::run_measurement_model(const vector<pair<double, double> > &Z_){
         
         weights_.resize(0);
         
@@ -546,7 +546,7 @@ namespace particle_filter{
 
 
     
-    double MeasurementModel::likelihood_field_range_finder_model(const vector<double> &Z_, const vector<double> &particle_pose_coords){
+    double MeasurementModel::likelihood_field_range_finder_model(const vector<pair<double, double> > &Z_, const vector<double> &particle_pose_coords){
 
         ROS_INFO("Size of Z_: %d\n", Z_.size());
 
@@ -566,20 +566,14 @@ namespace particle_filter{
 
         for(int k = 1; k <= K ; k++) {
             
-            double z_k = Z_[k];
+            double z_k = Z_[k].first;
+            double theta_sense_ = theta_sense + Z_[k].second;
 
             if(z_k < z_max) {
                 
-                //ROS_INFO("k: %d z_k: %f\n", k , z_k);
-
-                //double x_k  = (x_sense * cos(theta));
-                //double y_k  =  (y_sense * cos(theta));
-
-                //double x_k = z_k * cos(theta + theta_sense);
-                //double y_k = z_k * sin(theta + theta_sense);
-
-                double x_k  = x + (x_sense * cos(theta))  - (y_sense * sin(theta)) + (z_k * cos(theta + theta_sense));
-                double y_k  = y + (y_sense * cos(theta))  - (x_sense * sin(theta)) + (z_k * sin(theta + theta_sense));
+                
+                double x_k  = x + (x_sense * cos(theta))  - (y_sense * sin(theta)) + (z_k * cos(theta + theta_sense_));
+                double y_k  = y + (y_sense * cos(theta))  - (x_sense * sin(theta)) + (z_k * sin(theta + theta_sense_));
                 
                 __uint32_t mx_k, my_k ;
                 costmap_ros_->worldToMap(x_k, y_k, mx_k, my_k);
