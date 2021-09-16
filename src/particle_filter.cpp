@@ -31,7 +31,7 @@ namespace particle_filter
     size_x = costmap_ros_->getSizeInCellsX();
     size_y = costmap_ros_->getSizeInCellsY();
 
-    num_particles = 20;
+    num_particles = 100;
 
     update_map_bounds();
 
@@ -173,11 +173,40 @@ namespace particle_filter
         }
 
         measurement_model->run_measurement_model(Z_);
-
         particle_list_ = measurement_model->get_particles();
-        
-        //lish_particle_list_(particle_list_);
 
+        /*int np_ = particle_list_.size();
+        ROS_INFO("np_: %d\n", np_);
+
+        for(int i = 0 ;i < np_; i++){
+
+            double x_ = particle_list_[i].pose.position.x, y_ = particle_list_[i].pose.position.y;
+            
+            tf2::Quaternion q_ = {particle_list_[i].pose.orientation.x, particle_list_[i].pose.orientation.y, particle_list_[i].pose.orientation.z, particle_list_[i].pose.orientation.w};
+            double theta_ = get_yaw_from_quaternion(q_);
+
+            ROS_INFO("x_: %f y_: %f theta_: %f\n", x_, y_, theta_);
+
+        }
+        
+        
+        //particle_list_ = measurement_model->get_particles();
+        
+        np_ = particles_.size();
+        ROS_INFO("np_: %d\n", np_);
+
+        for(int i = 0 ;i < np_; i++){
+
+            double x_ = particles_[i].pose.position.x, y_ = particles_[i].pose.position.y;
+
+            tf2::Quaternion q_ = {particles_[i].pose.orientation.x, particles_[i].pose.orientation.y, particles_[i].pose.orientation.z, particles_[i].pose.orientation.w};
+            double theta_ = get_yaw_from_quaternion(q_);
+
+            ROS_INFO("x_: %f y_: %f theta_: %f\n", x_, y_, theta_);
+
+        }
+        */
+        
         laserscan_flag = false;
         
     }
@@ -844,9 +873,8 @@ namespace particle_filter
 
         ROS_INFO("Bot has moved 1 meter in odom frame prev_x: %d prev_y: %d curr_x: %d curr_y: %d \n", prev_odom_.pose.pose.position.x, prev_odom_.pose.pose.position.y, curr_odom_.pose.pose.position.x, curr_odom_.pose.pose.position.y);
         perform_motion_model_update();
-
         delete_all_markers();
-        laserscan_flag = true;
+        //laserscan_flag = true;
       }
     }
   }

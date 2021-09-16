@@ -72,7 +72,7 @@ namespace particle_filter{
         */
         
         //fixed params 
-        z_max = 20; 
+        z_max = 30; 
 
         theta_sense = 0;
         x_sense = 0.337, y_sense = 0 ; 
@@ -152,10 +152,8 @@ namespace particle_filter{
 
     void MeasurementModel::add_noise_to_resampled_particles(vector<geometry_msgs::PoseStamped> &resampled_particles_){
 
-        std::vector<double> data = {1., 2., 3., 4., 5., 6.};
-
-        const double mean = 0.0;
-        const double position_stddev = 1, orientation_stddev = acos(-1)/12.0;
+        double mean = 0.0;
+        double position_stddev = 0.2, orientation_stddev = acos(-1)/12.0;
         
         std::default_random_engine position_gen, orientation_gen;
         
@@ -181,8 +179,9 @@ namespace particle_filter{
             ROS_INFO("x_: %f y_: %f theta_: %f\n", x_, y_, theta_);
 
             geometry_msgs::PoseStamped updated_pose = resampled_particles_[i];
-            resampled_particles_[i].pose.position.x = x_; 
-            resampled_particles_[i].pose.position.y = y_;
+
+            updated_pose.pose.position.x = x_; 
+            updated_pose.pose.position.y = y_;
             
             q_.setRPY(0, 0, theta_);
             q_.normalize();
@@ -195,12 +194,6 @@ namespace particle_filter{
             resampled_particles_[i] = updated_pose;
 
         }
-
-
-        // Output the result, for demonstration purposes
-        std::copy(begin(data), end(data), std::ostream_iterator<double>(std::cout, " "));
-        std::cout << "\n";
-
 
     }
 
@@ -229,7 +222,8 @@ namespace particle_filter{
         vector<double> normalized_weights_ = normalize_particle_weights(weights_);
 
         vector<geometry_msgs::PoseStamped> resampled_particles_ = resampled_particles(normalized_weights_);
-
+        
+        
         ROS_INFO("resmapled_particles_.size(): %d\n", resampled_particles_.size());
 
         int num_particles = (int)particles_.size();
@@ -241,6 +235,10 @@ namespace particle_filter{
         }
         
         add_noise_to_resampled_particles(resampled_particles_);
+        
+        //particles_ = resampled_particles_;
+        set_particles(resampled_particles_);
+
         publish_particle_list_(resampled_particles_);
 
         //set_particles(resampled_particles_);
@@ -438,17 +436,6 @@ namespace particle_filter{
         marker.lifetime = ros::Duration(10.0);
 
         
-        /*while (goal_marker_pub.getNumSubscribers() <= 0)
-        {
-
-        ROS_INFO("Subscriber not found --- sleeping for 1 second! \n");
-        //goal_marker_pub.publish(marker);
-        ros::Duration(1.0).sleep();
-        }
-
-        //ROS_INFO("Subscriber found\n");
-        */
-       
        goal_marker_pub.publish(marker);
 
     }
