@@ -77,7 +77,7 @@ namespace particle_filter{
         theta_sense = 0;
         x_sense = 0.337, y_sense = 0 ; 
         
-        sigma_hit = 2;
+        sigma_hit = 2.0;
 
         //variable params
         num_beams = 4;
