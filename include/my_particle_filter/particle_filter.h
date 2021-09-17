@@ -35,9 +35,6 @@ namespace particle_filter {
             void delete_all_markers();
             void publish_marker_array(const std::vector<std::pair<__uint32_t, __uint32_t> >&point_marker_array);
             
-
-
-
         private:
             
             costmap_2d::Costmap2DROS* my_costmap_ros;
@@ -45,7 +42,6 @@ namespace particle_filter {
             costmap_2d::Costmap2D* costmap_ros_;
             __uint32_t size_x , size_y;
             ros::Publisher particle_pose_array_pub_,goal_marker_pub, marker_array_pub;
-            
             
             ros::NodeHandle nh_;    
             int map_xi, map_xf, map_yi, map_yf;

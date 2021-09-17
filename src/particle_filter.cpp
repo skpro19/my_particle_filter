@@ -38,12 +38,7 @@ namespace particle_filter
     particle_list_.resize(0);
     weight_list_.resize(0);
 
-    //Gaussian
-    linear_cov = {0.001, 0.001};
-    angular_cov = {0.001, 0.001, 0.03};
-
-    laser_cov = 4;
-
+    
     marker_id_cnt = 0;
 
     //Class Publishers
@@ -64,17 +59,6 @@ namespace particle_filter
     //flags
     laserscan_flag = false;
 
-    //scan parameters
-    range_min_scan = 0.1;
-    range_max_scan = 30.0;
-    ang_inc_scan = 0.0065540750511 * 4;
-    ang_mn_scan = -2.3561899662;
-    ang_mx_scan = 2.3561899662;
-
-    ROS_INFO("Printing from inside the constructor!\n");
-    ROS_INFO("ang_inc_scan: %f\n", ang_inc_scan);
-  
-    ///distance_costmap
     
     ROS_INFO("Sleeping for 2 seconds!\n");
 
@@ -85,10 +69,6 @@ namespace particle_filter
     laserscan_flag = false;
     
   }
-
-
-
-
 
   void ParticleFilter::laserscan_callback(const sensor_msgs::LaserScanConstPtr &msg){
 
@@ -541,11 +521,6 @@ namespace particle_filter
       particle_list_.push_back(particle_);
     }
 
-
-
   }
-
-
-
   
 };
