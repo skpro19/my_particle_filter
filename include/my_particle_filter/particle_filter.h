@@ -46,14 +46,15 @@ namespace particle_filter {
             ros::NodeHandle nh_;    
             int map_xi, map_xf, map_yi, map_yf;
             double res;
+            
             std::vector<geometry_msgs::PoseStamped> particle_list_;
             std::vector<double>weight_list_, normalized_weight_list;
+            
             ros::Subscriber odom_sub, initial_pose_sub, laserscan_sub;
+            
             nav_msgs::Odometry curr_odom_, prev_odom_;
             bool first_run;
-            std::vector<double> linear_cov, angular_cov; 
-            int dis_index[4000][4000];
-            int vis_index[4000][4000];
+            
             int marker_id_cnt;
 
             //measurement model object
@@ -68,19 +69,6 @@ namespace particle_filter {
             std::vector<double>laserscan_ranges;
             bool laserscan_flag;
             
-            //testing vars
-            geometry_msgs::PoseStamped init_pose_;
-
-            //scan params
-            int num_readings_scan;
-            double range_min_scan; ;
-            double range_max_scan;;
-            double ang_inc_scan;
-            double ang_mn_scan;
-            double ang_mx_scan;
-            double laser_cov;
-
-            //distance_costmap
             
     };
 
